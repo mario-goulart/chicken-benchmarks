@@ -70,10 +70,13 @@ exec csi -s $0 "$@"
   (print (or time "FAIL")))
 
 
-(define (write-results!)
+(define (write-log!)
   (with-output-to-file (log-file)
     (lambda ()
-      (pp *results*))))
+      (pp `((repetitions . ,(repetitions))
+            (installation-prefix . ,(installation-prefix))
+            (csc-options . ,(csc-options))
+            (results . ,*results*))))))
 
 
 (define (display-env)
@@ -95,7 +98,7 @@ exec csi -s $0 "$@"
              (display-result bin result)))))
      progs)
     (change-directory here)
-    (write-results!)))
+    (write-log!)))
 
 
 (define (usage #!optional exit-code)
