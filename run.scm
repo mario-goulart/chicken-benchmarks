@@ -6,7 +6,7 @@ exec csi -s $0 "$@"
 (use posix utils srfi-1)
 
 ;;; Configurable parameters
-(define repetitions (make-parameter 3))
+(define repetitions (make-parameter 10))
 (define debug? (make-parameter #f))
 (define installation-prefix (make-parameter #f)) ;; #f -> use chicken tools from PATH
 (define csc-options (make-parameter ""))
