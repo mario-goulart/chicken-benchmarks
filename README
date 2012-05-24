@@ -1,0 +1,33 @@
+CHICKEN benchmarks
+
+The benchmark programs have been taken from CHICKEN version 4.2.0.  A
+simpler runner (run.scm) has been implemented.
+
+  $ ./run.scm -h
+  Usage: run.scm [ config file ]
+
+The configuration file (optional) is a scheme file which can set the
+following parameters:
+
+* repetitions: number of times each benchmark program is executed
+    (default = 3)
+
+* installation-prefix: the CHICKEN installation prefix (default = #f,
+    use CHICKEN tools from $PATH)
+
+* csc-options: options to be passed to csc
+
+* log-file: a sexpr-formatted log file where results are written
+    (default = benchmark.log)
+
+* debug?: shows the executed shell commands
+
+If the configuration file is not provided, run.scm will pick the
+CHICKEN tools from $PATH.
+
+
+Configuration file example:
+
+  $ cat 4.7.0.conf
+  (installation-prefix "/usr/local/chicken-4.7.0")
+  (csc-options "-O3")
