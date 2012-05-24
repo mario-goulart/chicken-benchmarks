@@ -112,4 +112,7 @@ exec csi -s $0 "$@"
   (unless (null? args) ;; load config file
     (load (car args)))
 
+  (when (installation-prefix)
+    (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
+
   (run-all))
