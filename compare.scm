@@ -66,6 +66,25 @@ exec csi -s $0 "$@"
   (apply min (filter identity times)))
 
 
+(define (fmt num)
+  ;; formats num with two digits at the right of .
+  (let* ((str-num (number->string num))
+         (tokens (string-split str-num "."))
+         (l (car tokens))
+         (r (if (null? (cdr tokens))
+                "00"
+                (cadr tokens))))
+    (string-append l "." (if (< (string-length r) 2)
+                             (string-append r "0")
+                             (string-take r 2)))))
+
+
+(define (normalize worst time)
+  (if (or (zero? worst)
+          (zero? time))
+      1
+      (/ worst time)))
+
 (define (display-results prog times)
   (display (string-pad-right prog 20 #\_))
   (let ((best (find-best times))
@@ -76,10 +95,10 @@ exec csi -s $0 "$@"
                  (cond ((not time)
                         "FAIL")
                        ((= time best)
-                        (green (number->string time)))
+                        (green (fmt (normalize worst time))))
                        ((= time worst)
-                        (red (number->string time)))
-                       (else (number->string time)))
+                        (red "1.00"))
+                       (else (fmt (normalize worst time))))
                  (if (and ansi-term?
                           time
                           (or (= time best) (= time worst)))
