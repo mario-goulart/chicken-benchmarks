@@ -40,14 +40,54 @@ exec csi -s $0 "$@"
     (print (make-string (+ progs/pad (* num-logs results/pad)) #\=))))
 
 
+(define ansi-term? ;; adapted from the test egg
+  (and (##sys#tty-port? (current-output-port))
+       (member (get-environment-variable "TERM")
+               '("xterm" "xterm-color" "xterm-256color" "rxvt" "kterm"
+                 "linux" "screen" "screen-256color" "vt100"))))
+
+(define (green text)
+  (if ansi-term?
+      (conc "\x1b[32m" text "\x1b[0m")
+      text))
+
+
+(define (red text)
+  (if ansi-term?
+      (conc "\x1b[31m" text "\x1b[0m")
+      text))
+
+
+(define (find-worst times)
+  (apply max (filter identity times)))
+
+
+(define (find-best times)
+  (apply min (filter identity times)))
+
 
 (define (display-results prog times)
   (display (string-pad-right prog 20 #\_))
-  (for-each
-   (lambda (time)
-     (display (string-pad (->string (or time "FAIL")) results/pad #\_)))
-   times)
-  (newline))
+  (let ((best (find-best times))
+        (worst (find-worst times)))
+    (for-each
+     (lambda (time)
+       (display (string-pad
+                 (cond ((not time)
+                        "FAIL")
+                       ((= time best)
+                        (green (number->string time)))
+                       ((= time worst)
+                        (red (number->string time)))
+                       (else (number->string time)))
+                 (if (and ansi-term?
+                          time
+                          (or (= time best) (= time worst)))
+                     (+ results/pad 9) ;; + ansi format chars
+                     results/pad)
+                 #\_)))
+     times)
+    (newline)))
 
 
 (define-record log repetitions installation-prefix csc-options results)
