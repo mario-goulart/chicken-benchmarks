@@ -69,8 +69,15 @@ exec csi -s $0 "$@"
                         *results*)))
 
 
-(define (display-result prog time)
-  (display (string-pad-right prog 40 #\.))
+(define (display-result/prog prog progno num-progs)
+  (display
+   (string-append
+    (string-pad-right (sprintf "(~a/~a)" progno num-progs) 8 #\space)
+    (string-pad-right prog 40 #\.)))
+  (flush-output))
+
+
+(define (display-result/time time)
   (print (if time
              (conc time "s")
              "FAIL")))
@@ -92,17 +99,21 @@ exec csi -s $0 "$@"
 
 
 (define (run-all)
-  (let ((here (current-directory)))
+  (let ((here (current-directory))
+        (num-progs (length (programs))))
     (change-directory progs-dir)
     (display-env)
-    (for-each
-     (lambda (prog)
-       (let ((bin (pathname-strip-extension prog)))
-         (let-values (((status output) (compile prog)))
-           (let ((result (and (zero? status) (run bin))))
-             (add-result! bin result)
-             (display-result bin result)))))
-     (programs))
+    (let loop ((progs (programs))
+               (progno 1))
+      (unless (null? progs)
+        (let* ((prog (car progs))
+               (bin (pathname-strip-extension prog)))
+          (display-result/prog bin progno num-progs)
+          (let-values (((status output) (compile prog)))
+            (let ((result (and (zero? status) (run bin))))
+              (add-result! bin result)
+              (display-result/time result))))
+        (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
     (write-log!)))
 
