@@ -68,7 +68,9 @@ exec csi -s $0 "$@"
 
 (define (display-result prog time)
   (display (string-pad-right prog 40 #\.))
-  (print (or time "FAIL")))
+  (print (if time
+             (conc time "s")
+             "FAIL")))
 
 
 (define (write-log!)
