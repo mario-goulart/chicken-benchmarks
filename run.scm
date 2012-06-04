@@ -18,8 +18,9 @@ exec csi -s $0 "$@"
 (define *results* '())
 
 (define progs
-  (map pathname-strip-directory
-       (glob (make-pathname progs-dir "*.scm"))))
+  (sort (map pathname-strip-directory
+             (glob (make-pathname progs-dir "*.scm")))
+        string<))
 
 
 (define (csc)

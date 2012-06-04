@@ -121,7 +121,7 @@ exec csi -s $0 "$@"
 
 
 (define (compare logs)
-  (let ((progs (map car (log-results (car logs)))))
+  (let ((progs (sort (map car (log-results (car logs))) string<)))
     (display-header logs)
     (for-each (lambda (prog)
                 (display-results prog
