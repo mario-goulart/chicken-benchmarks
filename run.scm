@@ -11,16 +11,19 @@ exec csi -s $0 "$@"
 (define installation-prefix (make-parameter #f)) ;; #f -> use chicken tools from PATH
 (define csc-options (make-parameter ""))
 (define log-file (make-parameter "benchmark.log"))
+(define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
+(define skip-programs (make-parameter '())) ;; list of symbols
 
 
 (define progs-dir "progs")
 
 (define *results* '())
 
-(define progs
-  (sort (map pathname-strip-directory
-             (glob (make-pathname progs-dir "*.scm")))
-        string<))
+(define all-progs
+  (map string->symbol
+       (sort (map pathname-file
+                  (glob (make-pathname progs-dir "*.scm")))
+             string<)))
 
 
 (define (csc)
@@ -99,7 +102,7 @@ exec csi -s $0 "$@"
            (let ((result (and (zero? status) (run bin))))
              (add-result! bin result)
              (display-result bin result)))))
-     progs)
+     (programs))
     (change-directory here)
     (write-log!)))
 
@@ -117,6 +120,22 @@ exec csi -s $0 "$@"
 
   (unless (null? args) ;; load config file
     (load (car args)))
+
+  ;; Determine programs to be run
+  (programs (or (programs) all-progs))
+
+  ;; Remove skipped programs
+  (programs (if (null? skip-programs)
+                (programs)
+                (remove (lambda (prog)
+                          (memq prog (skip-programs)))
+                        (programs))))
+
+  ;; Set the correct filename
+  (programs (map (lambda (prog)
+                   (make-pathname #f (->string prog) "scm"))
+                 (programs)))
+
 
   (when (installation-prefix)
     (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
