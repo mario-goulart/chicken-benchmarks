@@ -98,6 +98,23 @@ exec csi -s $0 "$@"
   (newline))
 
 
+(define (prettify-time seconds)
+  (define (pretty-time seconds)
+    (cond ((zero? seconds)
+           "")
+          ((< seconds 60)
+           (conc seconds "s"))
+          ((< seconds 3600)
+           (let ((mins (quotient seconds 60)))
+             (conc mins "m" (pretty-time (- seconds (* 60 mins))))))
+          (else
+           (let ((hours (quotient seconds 3600)))
+             (conc hours "h" (pretty-time (- seconds (* 3600 hours))))))))
+  (if (zero? seconds)
+      "0s"
+      (pretty-time (inexact->exact seconds))))
+
+
 (define (run-all)
   (let ((here (current-directory))
         (num-progs (length (programs))))
@@ -151,4 +168,7 @@ exec csi -s $0 "$@"
   (when (installation-prefix)
     (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
 
-  (run-all))
+  (let ((start (current-seconds)))
+    (run-all)
+    (print "\nTotal run time: "
+           (prettify-time (- (current-seconds) start)))))
