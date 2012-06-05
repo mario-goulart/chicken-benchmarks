@@ -27,6 +27,8 @@ exec csi -s $0 "$@"
         (newline))
       (loop (cdr logs) (+ id 1))))
 
+  (print "Displaying normalized results (larger numbers indicate better results)\n")
+
   (let ((num-logs (length logs)))
     (display (string-pad-right "Programs" progs/pad #\space))
     (for-each
