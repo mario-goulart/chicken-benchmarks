@@ -13,16 +13,14 @@ exec csi -s $0 "$@"
 (define log-file (make-parameter "benchmark.log"))
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
 (define skip-programs (make-parameter '())) ;; list of symbols
-
-
-(define progs-dir "progs")
+(define programs-dir (make-parameter "progs"))
 
 (define *results* '())
 
-(define all-progs
+(define (all-progs)
   (map string->symbol
        (sort (map pathname-file
-                  (glob (make-pathname progs-dir "*.scm")))
+                  (glob (make-pathname (programs-dir) "*.scm")))
              string<)))
 
 
@@ -118,7 +116,7 @@ exec csi -s $0 "$@"
 (define (run-all)
   (let ((here (current-directory))
         (num-progs (length (programs))))
-    (change-directory progs-dir)
+    (change-directory (programs-dir))
     (display-env)
     (let loop ((progs (programs))
                (progno 1))
@@ -150,7 +148,7 @@ exec csi -s $0 "$@"
     (load (car args)))
 
   ;; Determine programs to be run
-  (programs (or (programs) all-progs))
+  (programs (or (programs) (all-progs)))
 
   ;; Remove skipped programs
   (programs (if (null? skip-programs)

@@ -9,6 +9,9 @@ simpler runner (run.scm) has been implemented.
 The configuration file (optional) is a scheme file which can set the
 following parameters:
 
+* programs-dir: directory where programs to be benchmarked can be
+    found (default = "progs")
+
 * repetitions: number of times each benchmark program is executed
     (default = 3)
 
