@@ -15,8 +15,8 @@ following parameters:
 * repetitions: number of times each benchmark program is executed
     (default = 3)
 
-* installation-prefix: the CHICKEN installation prefix (default = #f,
-    use CHICKEN tools from $PATH)
+* installation-prefix: the CHICKEN installation prefix (default =
+  prefix of the running chicken)
 
 * csc-options: options to be passed to csc
 

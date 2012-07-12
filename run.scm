@@ -4,11 +4,12 @@ exec csi -s $0 "$@"
 |#
 
 (use posix utils srfi-1)
+(use (only setup-api program-path))
 
 ;;; Configurable parameters
 (define repetitions (make-parameter 10))
 (define debug? (make-parameter #f))
-(define installation-prefix (make-parameter #f)) ;; #f -> use chicken tools from PATH
+(define installation-prefix (make-parameter (pathname-directory (program-path))))
 (define csc-options (make-parameter ""))
 (define log-file (make-parameter "benchmark.log"))
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
