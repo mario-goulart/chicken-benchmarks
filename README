@@ -1,7 +1,10 @@
 CHICKEN benchmarks
 
-The benchmark programs have been taken from CHICKEN version 4.2.0.  A
-simpler runner (run.scm) has been implemented.
+Some benchmark programs have been taken from CHICKEN version 4.2.0 and
+other programs have been adapted from other benchmark suites or just
+made for this suite.
+
+A simpler runner (run.scm) is available:
 
   $ ./run.scm -h
   Usage: run.scm [ <options> ] [ config file ]
