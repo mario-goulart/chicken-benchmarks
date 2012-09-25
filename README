@@ -40,7 +40,6 @@ CHICKEN tools from $PATH.
 Configuration file example:
 
   $ cat 4.7.0.conf
-  (installation-prefix "/usr/local/chicken-4.7.0")
   (csc-options "-O3")
 
 
