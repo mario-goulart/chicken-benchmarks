@@ -4,7 +4,16 @@ The benchmark programs have been taken from CHICKEN version 4.2.0.  A
 simpler runner (run.scm) has been implemented.
 
   $ ./run.scm -h
-  Usage: run.scm [ config file ]
+  Usage: run.scm [ <options> ] [ config file ]
+  
+  <options> are:
+    --programs-dir=<directory>      directory where programs are
+    --log-file=<file>               the log filename
+    --repetitions=<number>          number of times to repeat each program
+    --csc-options=<csc options>     options to give csc when compiling programs
+    --programs=<prog1>,<prog2>      a comma-separated list of programs to run
+    --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
+
 
 The configuration file (optional) is a scheme file which can set the
 following parameters:

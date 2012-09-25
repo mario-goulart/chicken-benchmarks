@@ -3,7 +3,7 @@
 exec csi -s $0 "$@"
 |#
 
-(use posix utils srfi-1)
+(use posix utils srfi-1 irregex)
 (use (only setup-api program-path))
 
 ;;; Configurable parameters
@@ -133,10 +133,31 @@ exec csi -s $0 "$@"
     (change-directory here)
     (write-log!)))
 
+(define (cmd-line-arg option args)
+  ;; Returns the argument associated to the command line option OPTION
+  ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
+  ;; argument.
+  (let ((val (any (lambda (arg)
+                    (irregex-match
+                     `(seq ,(->string option) "=" (submatch (* any)))
+                     arg))
+                  args)))
+    (and val (irregex-match-substring val 1))))
 
 (define (usage #!optional exit-code)
-  (printf "Usage: ~a [ config file ]\n"
-          (pathname-strip-directory (program-name)) )
+  (printf
+   (string-append
+    "Usage: ~a [ <options> ] [ config file ]\n"
+    "\n"
+    "<options> are:\n"
+    "  --programs-dir=<directory>      directory where programs are\n"
+    "  --log-file=<file>               the log filename\n"
+    "  --repetitions=<number>          number of times to repeat each program\n"
+    "  --csc-options=<csc options>     options to give csc when compiling programs\n"
+    "  --programs=<prog1>,<prog2>      a comma-separated list of programs to run\n"
+    "  --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip\n"
+    "\t\n")
+   (pathname-strip-directory (program-name)) )
   (when exit-code (exit exit-code)))
 
 (let ((args (command-line-arguments)))
@@ -145,11 +166,29 @@ exec csi -s $0 "$@"
             (member "--help" args))
     (usage 0))
 
-  (unless (null? args) ;; load config file
-    (load (car args)))
+  (let ((args-without-options
+         (remove (lambda (arg)
+                   (string-prefix? "--" arg))
+                 args)))
+    (unless (null? args-without-options)
+      ;; load config file
+      (load (car args-without-options))))
+
+  ;; Set parameters according to options passed via command line (they
+  ;; clobber config file options)
+  (programs-dir (or (cmd-line-arg '--programs-dir args) (programs-dir)))
+  (skip-programs (or (cmd-line-arg '--skip-programs args) (skip-programs)))
+  (log-file (or (cmd-line-arg '--log-file args) (log-file)))
+  (csc-options (or (cmd-line-arg '--csc-options args) (csc-options)))
+  (repetitions (or (and-let* ((r (cmd-line-arg '--repetitions args)))
+                     (string->number r))
+                   (repetitions)))
 
   ;; Determine programs to be run
-  (programs (or (programs) (all-progs)))
+  (programs (cond ((cmd-line-arg '--programs args)
+                   => (lambda (progs)
+                        (map string->symbol (string-split progs ","))))
+                  (else (or (programs) (all-progs)))))
 
   ;; Remove skipped programs
   (programs (if (null? skip-programs)
