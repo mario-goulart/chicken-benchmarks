@@ -61,11 +61,17 @@ exec csi -s $0 "$@"
 
 
 (define (find-worst times)
-  (apply max (filter identity times)))
+  (let ((times (filter identity times)))
+    (if (null? times)
+        'FAIL
+        (apply max times))))
 
 
 (define (find-best times)
-  (apply min (filter identity times)))
+  (let ((times (filter identity times)))
+    (if (null? times)
+        'FAIL
+        (apply min times))))
 
 
 (define (fmt num)
