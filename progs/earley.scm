@@ -643,4 +643,12 @@
     (let ((x (p '(a a a a a a a a a))))
       (length (parse->trees x 's 0 9)))))
 
-(time (test))
+;; Larceny-specific code commented
+;; (define (main . args)
+;;   (run-benchmark
+;;     "earley"
+;;     earley-iters
+;;     (lambda () (test))
+;;     (lambda (result) (equal? result 1430))))
+
+(time (begin (test) (test) (test)))
