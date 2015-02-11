@@ -6,7 +6,7 @@ exec csi -s $0 "$@"
 (module compare ()
 
 (import chicken scheme)
-(use data-structures files posix srfi-13 srfi-1)
+(use data-structures extras files irregex posix srfi-13 srfi-1)
 
 (define progs/pad 20)
 (define results/pad 10)
@@ -29,9 +29,9 @@ exec csi -s $0 "$@"
         (show-option 'repetitions (log-repetitions log))
         (newline))
       (loop (cdr logs) (+ id 1))))
+  (print "Displaying normalized results (larger numbers indicate better results)\n"))
 
-  (print "Displaying normalized results (larger numbers indicate better results)\n")
-
+(define (display-columns-header logs)
   (let ((num-logs (length logs)))
     (display (string-pad-right "Programs" progs/pad #\space))
     (for-each
@@ -120,36 +120,119 @@ exec csi -s $0 "$@"
     (newline)))
 
 
-(define-record log repetitions installation-prefix csc-options results)
+(define-record log version repetitions installation-prefix csc-options results)
 
 
 (define (read-log log-file)
   (let ((log-data (with-input-from-file log-file read)))
-    (make-log (alist-ref 'repetitions log-data)
+    (make-log (alist-ref 'log-format-version log-data)
+              (alist-ref 'repetitions log-data)
               (alist-ref 'installation-prefix log-data)
               (alist-ref 'csc-options log-data)
               (alist-ref 'results log-data))))
 
+(define (average data)
+  (/ (apply + data) (length data)))
 
-(define (compare logs)
+(define (get-log-results-by-metric log metric)
+  ;;1> (define l (with-input-from-file "benchmark.log" read))
+  ;;2> (define r (alist-ref 'results l))
+  (let ((results (log-results log)))
+    (if (eq? metric 'build-time)
+        (map (lambda (result)
+               (cons (car result)
+                     (cadr result)))
+             results)
+        (map (lambda (prog-data)
+               (let ((prog (car prog-data))
+                     (result-subsets (cddr prog-data)))
+                 (cons prog
+                       (map (lambda (result-subset)
+                              (alist-ref metric result-subset))
+                            result-subsets))))
+             results))))
+
+
+(define (compare logs metrics)
   (let ((progs (sort (map car (log-results (car logs))) string<)))
     (display-header logs)
-    (for-each (lambda (prog)
-                (display-results prog
-                                 (map (lambda (log)
-                                        (let ((results (log-results log)))
-                                          (alist-ref prog results equal?)))
-                                      logs)))
-              progs)))
+    (for-each
+     (lambda (metric)
+       (printf "===\n=== ~a\n===\n\n" metric)
+       (display-columns-header logs)
+       (for-each
+        (lambda (prog)
+          (display-results prog
+                           (map (lambda (log)
+                                  (let* ((results (get-log-results-by-metric log metric))
+                                         (prog-results (alist-ref prog results equal?)))
+                                    (if (eq? metric 'build-time)
+                                        prog-results
+                                        (average prog-results))))
+                                logs)))
+        progs)
+       (print "\n"))
+     metrics)))
 
+(define (parse-metrics-from-command-line args all-metrics)
+  (or (and-let* ((m (cmd-line-arg '--metrics args))
+                 (ms (map string->symbol
+                          (string-split m ","))))
+        (unless (every (lambda (metric)
+                         (memq metric all-metrics))
+                       ms)
+          (fprintf (current-error-port)
+                   "Invalid metrics: ~a.  Aborting.\n"
+                   (string-intersperse
+                    (map symbol->string
+                         (filter (lambda (m)
+                                   (not (memq m all-metrics)))
+                                 ms))
+                    ", "))
+          (exit 1))
+        ms)
+      '(cpu-time)))
+
+(define (cmd-line-arg option args)
+  ;; Returns the argument associated to the command line option OPTION
+  ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
+  ;; argument.
+  (let ((val (any (lambda (arg)
+                    (irregex-match
+                     `(seq ,(->string option) "=" (submatch (* any)))
+                     arg))
+                  args)))
+    (and val (irregex-match-substring val 1))))
 
 (define (usage #!optional exit-code)
-  (printf "Usage: ~a log-file-1 log-file-2 ..."
-          (pathname-strip-directory (program-name)))
-  (when exit-code (exit exit-code)))
+  (let ((program (pathname-strip-directory (program-name)))
+        (port (if (and exit-code (not (zero? exit-code)))
+                  (current-error-port)
+                  (current-output-port))))
+    (display #<#EOF
+Usage:
+   #program --list-metrics
+   #program [ --metrics=m1[,m2,...] ] log-file-1 log-file-2 ...
 
-(let ((args (command-line-arguments)))
-  (when (null? args)
+If metrics are not specified, only results for cpu-time will be displayed.
+
+EOF
+    port)
+    (when exit-code (exit exit-code))))
+
+(let* ((args (command-line-arguments))
+       (non-option-args
+        (remove (lambda (arg)
+                  (string-prefix? "--" arg))
+                args))
+       (all-metrics '(build-time cpu-time major-gcs-time mutations
+                      mutations-tracked major-gcs minor-gcs)))
+
+  (when (member "--list-metrics" args)
+    (for-each print all-metrics)
+    (exit 0))
+
+  (when (null? non-option-args)
     (usage 1))
 
   (when (or (member "-h" args)
@@ -157,6 +240,7 @@ exec csi -s $0 "$@"
             (member "--help" args))
     (usage 0))
 
-  (compare (map read-log args)))
+  (let ((metrics (parse-metrics-from-command-line args all-metrics)))
+    (compare (map read-log non-option-args) metrics)))
 
 ) ;; end module
