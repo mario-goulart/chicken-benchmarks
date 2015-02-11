@@ -3,7 +3,10 @@
 exec csi -s $0 "$@"
 |#
 
-(use data-structures posix srfi-13 srfi-1)
+(module compare ()
+
+(import chicken scheme)
+(use data-structures files posix srfi-13 srfi-1)
 
 (define progs/pad 20)
 (define results/pad 10)
@@ -155,3 +158,5 @@ exec csi -s $0 "$@"
     (usage 0))
 
   (compare (map read-log args)))
+
+) ;; end module
