@@ -3,7 +3,11 @@
 exec csi -s $0 "$@"
 |#
 
-(use posix extras utils files data-structures srfi-1 srfi-13 irregex)
+(module run-benchmarks ()
+
+(import chicken scheme)
+
+(use data-structures extras files posix utils srfi-1 srfi-13 irregex)
 (use (only setup-api program-path))
 
 ;;; Configurable parameters
@@ -210,3 +214,5 @@ exec csi -s $0 "$@"
     (run-all)
     (print "\nTotal run time: "
            (prettify-time (- (current-seconds) start)))))
+
+) ;; end module
