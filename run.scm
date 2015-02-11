@@ -37,69 +37,213 @@ exec csi -s $0 "$@"
 
 (define (run-shell-command command)
   ;; Returns (values <status> <output>)
-  (let* ((p (open-input-pipe (string-append command " 2>&1")))
-         (output (read-all p)))
+  (let* ((start (current-milliseconds))
+         (p (open-input-pipe (string-append command " 2>&1")))
+         (output (read-all p))
+         (duration (- (current-milliseconds) start)))
     (when (debug?) (print "Running " command))
     (values (arithmetic-shift (close-input-pipe p) -8)
-            output)))
+            output
+            (/ duration 1000.0))))
 
 
-(define (parse-time time-output)
-  (let* ((time-line (last (string-split time-output "\n")))
-         (time-tokens (string-split time-line)))
-    (string->number (string-chomp (car time-tokens) "s"))))
+(define-record bench-result
+  cpu-time
+  mutations
+  mutations-tracked
+  major-gcs-time
+  major-gcs
+  minor-gcs)
 
+(define-record-printer (bench-result obj out)
+  (fprintf
+   out
+   "<bench-result cpu-time: ~S, major-gcs-time: ~S, mutations: ~S, mutations-tracked: ~S, major-gcs: ~S, minor-gcs: ~S"
+   (bench-result-cpu-time obj)
+   (bench-result-major-gcs-time obj)
+   (bench-result-mutations obj)
+   (bench-result-mutations-tracked obj)
+   (bench-result-major-gcs obj)
+   (bench-result-minor-gcs obj)))
+
+(define (bench-result->alist bench-result)
+  `((cpu-time          . ,(bench-result-cpu-time bench-result))
+    (major-gcs-time    . ,(bench-result-major-gcs-time bench-result))
+    (mutations         . ,(bench-result-mutations bench-result))
+    (mutations-tracked . ,(bench-result-mutations-tracked bench-result))
+    (major-gcs         . ,(bench-result-major-gcs bench-result))
+    (minor-gcs         . ,(bench-result-minor-gcs bench-result))))
+
+
+(define parse-time-output
+  (let* ((flonum '(or (+ num) (: (+ num) "." (+ num))))
+         (cpu-time-pattern
+          `(: (=> cpu-time ,flonum) "s CPU time"))
+         (mutations-pattern
+          '(or (: (=> mutations (+ num)) " mutations")
+               (: (=> mutations (+ num)) "/" (=> mutations-tracked (+ num))
+                  " mutations (total/tracked)")))
+         (major-gcs-time-pattern
+          `(: (=> major-gcs-time ,flonum) "s GC time (major)"))
+         (gcs-pattern
+          '(: (=> major-gcs (+ num)) "/"
+              (=> minor-gcs (+ num)) " GCs (major/minor)"))
+         (subnum (lambda (match name)
+                   (or (and-let* ((val (irregex-match-substring match name)))
+                         (string->number val))
+                       0))))
+    (lambda (line)
+      (let ((tokens (map string-trim-both (string-split line ",")))
+            (result (make-bench-result 0 0 0 0 0 0)))
+        (for-each
+         (lambda (token)
+           (cond
+            ((irregex-match cpu-time-pattern token)
+             => (lambda (match)
+                  (bench-result-cpu-time-set! result (subnum match 'cpu-time))))
+            ((irregex-match mutations-pattern token)
+             => (lambda (match)
+                  (bench-result-mutations-set! result (subnum match 'mutations))
+                  (bench-result-mutations-tracked-set! result (subnum match 'mutations-tracked))))
+            ((irregex-match major-gcs-time-pattern token)
+             => (lambda (match)
+                  (bench-result-major-gcs-time-set! result (subnum match 'major-gcs-time))))
+            ((irregex-match gcs-pattern token)
+             => (lambda (match)
+                  (bench-result-minor-gcs-set! result (subnum match 'minor-gcs))
+                  (bench-result-major-gcs-set! result (subnum match 'major-gcs))))))
+         tokens)
+        result))))
 
 (define (compile prog)
   (run-shell-command (sprintf "~a ~a ~a" (csc) (csc-options) prog)))
 
-
 (define (run bin)
-  ;; Return the total time in case of normal execution or #f in case
-  ;; of failure
+  ;; Return a list of bench-result objects in case of normal execution
+  ;; or #f in case of failure
   (let loop ((n (repetitions))
-             (total-time 0))
+             (results '()))
     (if (zero? n)
-        total-time
-        (let-values (((status output) (run-shell-command (make-pathname "." bin))))
-          (and (zero? status)
-               (loop (- n 1)
-                     (+ total-time (parse-time output))))))))
+        results
+        (let-values (((status output _) (run-shell-command (make-pathname "." bin))))
+          (let ((time-line (last (string-split output "\n"))))
+            (and (zero? status)
+                 (loop (- n 1)
+                       (cons (parse-time-output (string-chomp time-line))
+                             results))))))))
 
 
-(define (add-result! prog time)
-  (set! *results* (cons (cons prog time)
+(define (add-results! prog compile-time results)
+  (set! *results* (cons (cons prog (cons compile-time results))
                         *results*)))
 
+(define 1st-col-width 3)
+(define 2nd-col-width 23)
 
-(define (display-result/prog prog progno num-progs)
-  (display
-   (string-append
-    (string-pad-right (sprintf "(~a/~a)" progno num-progs) 8 #\space)
-    (string-pad-right prog 40 #\.)))
+(define col-padding "  ")
+
+(define cols
+  (map (lambda (label)
+         (cons label (string-length label)))
+       '("BT [1]"
+         "CT [2]"
+         "MGT[3]"
+         "Mut[4]"
+         "MT [5]"
+         "MGC[6]"
+         "mGC[7]")))
+
+(define (display-header)
+  (print "Columns legend:
+
+BT [1] => Build time (seconds)
+CT [2] => CPU time (seconds)
+MGT[3] => Major GCs time (seconds)
+Mut[4] => number of mutations
+MT [5] => number of tracked mutations
+MGC[6] => number of major GCs
+mGC[7] => number of minor GCs
+")
+  (display (string-append
+            (make-string 1st-col-width)
+            (string-pad-right "Programs" 2nd-col-width)))
+  (for-each (lambda (col)
+              (display col)
+              (display col-padding))
+            (map car cols))
+  (newline)
   (flush-output))
 
+(define (display-result/prog prog progno)
+  (display
+   (string-append
+    (string-pad-right
+     (sprintf "~a" progno) 1st-col-width #\space)
+    (string-pad-right prog 2nd-col-width #\.)))
+  (flush-output))
 
-(define (display-result/time time)
-  (print (if time
-             (conc time "s")
-             "FAIL")))
+(define (average results accessor)
+  (let ((len (length results))
+        (sum (apply + (map accessor results))))
+    (/ sum (exact->inexact len))))
 
+(define (maybe-drop-.0 num)
+  (if (and (inexact? num) (integer? num))
+      (inexact->exact num)
+      num))
+
+(define (display-results compile-time results)
+  (let ((vals
+         (map maybe-drop-.0
+              (list compile-time
+                    (average results bench-result-cpu-time)
+                    (average results bench-result-major-gcs-time)
+                    (average results bench-result-mutations)
+                    (average results bench-result-mutations-tracked)
+                    (average results bench-result-major-gcs)
+                    (average results bench-result-minor-gcs)))))
+    (for-each (lambda (val idx)
+                (display (string-pad-right
+                          (if results
+                              (->string val)
+                              "FAIL")
+                          (cdr (list-ref cols idx))
+                          #\space))
+                (display col-padding))
+              vals
+              (iota (length vals)))
+    (newline)
+    (flush-output)))
 
 (define (write-log!)
   (with-output-to-file (log-file)
     (lambda ()
-      (pp `((repetitions . ,(repetitions))
+      (pp `((log-format-version . 1)
+            (repetitions . ,(repetitions))
             (installation-prefix . ,(installation-prefix))
             (csc-options . ,(csc-options))
-            (results . ,*results*))))))
+            (results . ,(map (lambda (result)
+                               (let ((prog (car result))
+                                     (compile-time (cadr result))
+                                     (results (cddr result)))
+                                 (append (list prog compile-time)
+                                         (map bench-result->alist
+                                              results))))
+                             *results*)))))))
 
 
-(define (display-env)
-  (printf "Repeating each program ~a times\n" (repetitions))
-  (printf "Using ~a ~a\n" (csc) (csc-options))
-  (newline))
+(define (display-env num-progs)
+  (print #<#EOF
+Repeating each program #(repetitions) times
+Using #(csc) #(csc-options)
 
+Total number of programs to benchmark: #num-progs
+
+The values displayed correspond to the arithmetic mean of
+all results (except build time).
+
+EOF
+))
 
 (define (prettify-time seconds)
   (define (pretty-time seconds)
@@ -122,17 +266,18 @@ exec csi -s $0 "$@"
   (let ((here (current-directory))
         (num-progs (length (programs))))
     (change-directory (programs-dir))
-    (display-env)
+    (display-env num-progs)
+    (display-header)
     (let loop ((progs (programs))
                (progno 1))
       (unless (null? progs)
         (let* ((prog (car progs))
                (bin (pathname-strip-extension prog)))
-          (display-result/prog bin progno num-progs)
-          (let-values (((status output) (compile prog)))
-            (let ((result (and (zero? status) (run bin))))
-              (add-result! bin result)
-              (display-result/time result))))
+          (display-result/prog bin progno)
+          (let-values (((status output compile-time) (compile prog)))
+            (let ((results (and (zero? status) (run bin))))
+              (add-results! bin compile-time results)
+              (display-results compile-time results))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
     (write-log!)))
