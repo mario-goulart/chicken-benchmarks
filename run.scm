@@ -294,20 +294,24 @@ EOF
     (and val (irregex-match-substring val 1))))
 
 (define (usage #!optional exit-code)
-  (printf
-   (string-append
-    "Usage: ~a [ <options> ] [ config file ]\n"
-    "\n"
-    "<options> are:\n"
-    "  --programs-dir=<directory>      directory where programs are\n"
-    "  --log-file=<file>               the log filename\n"
-    "  --repetitions=<number>          number of times to repeat each program\n"
-    "  --csc-options=<csc options>     options to give csc when compiling programs\n"
-    "  --programs=<prog1>,<prog2>      a comma-separated list of programs to run\n"
-    "  --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip\n"
-    "\t\n")
-   (pathname-strip-directory (program-name)) )
-  (when exit-code (exit exit-code)))
+  (let ((program (pathname-strip-directory (program-name)))
+        (port (if (and exit-code (not (zero? exit-code)))
+                  (current-error-port)
+                  (current-output-port))))
+    (display #<#EOF
+Usage: #program [ <options> ] [ config file ]
+
+<options> are:
+  --programs-dir=<directory>      directory where programs are
+  --log-file=<file>               the log filename
+  --repetitions=<number>          number of times to repeat each program
+  --csc-options=<csc options>     options to give csc when compiling programs
+  --programs=<prog1>,<prog2>      a comma-separated list of programs to run
+  --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
+
+EOF
+    port)
+    (when exit-code (exit exit-code))))
 
 (let ((args (command-line-arguments)))
   (when (or (member "-h" args)
