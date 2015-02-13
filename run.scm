@@ -20,8 +20,6 @@ exec csi -s $0 "$@"
 (define skip-programs (make-parameter '())) ;; list of symbols
 (define programs-dir (make-parameter "progs"))
 
-(define *results* '())
-
 (define (all-progs)
   (map string->symbol
        (sort (map pathname-file
@@ -133,10 +131,6 @@ exec csi -s $0 "$@"
                              results))))))))
 
 
-(define (add-results! prog compile-time results)
-  (set! *results* (cons (cons prog (cons compile-time results))
-                        *results*)))
-
 (define 1st-col-width 3)
 (define 2nd-col-width 23)
 
@@ -215,7 +209,7 @@ mGC[7] => number of minor GCs
     (newline)
     (flush-output)))
 
-(define (write-log!)
+(define (write-log! results)
   (with-output-to-file (log-file)
     (lambda ()
       (pp `((log-format-version . 1)
@@ -229,7 +223,7 @@ mGC[7] => number of minor GCs
                                  (append (list prog compile-time)
                                          (map bench-result->alist
                                               results))))
-                             *results*)))))))
+                             results)))))))
 
 
 (define (display-env num-progs)
@@ -263,8 +257,13 @@ EOF
 
 
 (define (run-all)
-  (let ((here (current-directory))
-        (num-progs (length (programs))))
+  (let* ((here (current-directory))
+         (num-progs (length (programs)))
+         (all-results '())
+         (add-results!
+          (lambda (prog compile-time results)
+            (set! all-results (cons (cons prog (cons compile-time results))
+                                    all-results)))))
     (change-directory (programs-dir))
     (display-env num-progs)
     (display-header)
@@ -280,7 +279,7 @@ EOF
               (display-results compile-time results))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
-    (write-log!)))
+    (write-log! all-results)))
 
 (define (cmd-line-arg option args)
   ;; Returns the argument associated to the command line option OPTION
