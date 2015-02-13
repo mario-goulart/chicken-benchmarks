@@ -15,6 +15,7 @@ exec csi -s $0 "$@"
 (define debug? (make-parameter #f))
 (define installation-prefix (make-parameter (pathname-directory (program-path))))
 (define csc-options (make-parameter ""))
+(define runtime-options (make-parameter ""))
 (define log-file (make-parameter "benchmark.log"))
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
 (define skip-programs (make-parameter '())) ;; list of symbols
@@ -123,7 +124,13 @@ exec csi -s $0 "$@"
              (results '()))
     (if (zero? n)
         results
-        (let-values (((status output _) (run-shell-command (make-pathname "." bin))))
+        (let-values (((status output _)
+                      (run-shell-command
+                       (if (equal? (runtime-options) "")
+                           (make-pathname "." bin)
+                           (sprintf "~a ~a"
+                                    (make-pathname "." bin)
+                                    (runtime-options))))))
           (let ((time-line (last (string-split output "\n"))))
             (and (zero? status)
                  (loop (- n 1)
@@ -250,6 +257,7 @@ mGC[7] => number of minor GCs
             (repetitions . ,(repetitions))
             (installation-prefix . ,(installation-prefix))
             (csc-options . ,(csc-options))
+            (runtime-options . ,(runtime-options))
             (results . ,(map (lambda (result)
                                (let ((prog (car result))
                                      (compile-time (cadr result))
@@ -265,7 +273,7 @@ mGC[7] => number of minor GCs
   (print #<#EOF
 Repeating each program #(repetitions) times
 Using #(csc) #(csc-options)
-
+#(if (equal? (runtime-options) "") "" (conc "Runtime options: " (runtime-options) "\n"))
 Total number of programs to benchmark: #num-progs
 
 The values displayed correspond to the arithmetic mean of
@@ -346,6 +354,7 @@ Usage: #program [ <options> ] [ config file ]
   --log-file=<file>               the log filename
   --repetitions=<number>          number of times to repeat each program
   --csc-options=<csc options>     options to give csc when compiling programs
+  --runtime-options=<options>     runtime options
   --programs=<prog1>,<prog2>      a comma-separated list of programs to run
   --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
 
@@ -373,6 +382,7 @@ EOF
   (skip-programs (or (cmd-line-arg '--skip-programs args) (skip-programs)))
   (log-file (or (cmd-line-arg '--log-file args) (log-file)))
   (csc-options (or (cmd-line-arg '--csc-options args) (csc-options)))
+  (runtime-options (or (cmd-line-arg '--runtime-options args) (runtime-options)))
   (repetitions (or (and-let* ((r (cmd-line-arg '--repetitions args)))
                      (string->number r))
                    (repetitions)))
