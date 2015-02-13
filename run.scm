@@ -12,11 +12,11 @@ exec csi -s $0 "$@"
 
 ;;; Configurable parameters
 (define repetitions (make-parameter 10))
-(define debug? (make-parameter #f))
 (define installation-prefix (make-parameter (pathname-directory (program-path))))
 (define csc-options (make-parameter ""))
 (define runtime-options (make-parameter ""))
 (define log-file (make-parameter "benchmark.log"))
+(define debug-file (make-parameter #f))
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
 (define skip-programs (make-parameter '())) ;; list of symbols
 (define programs-dir (make-parameter "progs"))
@@ -39,9 +39,16 @@ exec csi -s $0 "$@"
   (let* ((start (current-milliseconds))
          (p (open-input-pipe (string-append command " 2>&1")))
          (output (read-all p))
-         (duration (- (current-milliseconds) start)))
-    (when (debug?) (print "Running " command))
-    (values (arithmetic-shift (close-input-pipe p) -8)
+         (duration (- (current-milliseconds) start))
+         (exit-code (arithmetic-shift (close-input-pipe p) -8)))
+    (when (debug-file)
+      (with-output-to-file (debug-file)
+        (lambda ()
+          (print "Running '" command "'")
+          (print "\tExit code = " exit-code)
+          (print "\tOutput = " output))
+        append:))
+    (values exit-code
             output
             (/ duration 1000.0))))
 
@@ -352,6 +359,7 @@ Usage: #program [ <options> ] [ config file ]
 <options> are:
   --programs-dir=<directory>      directory where programs are
   --log-file=<file>               the log filename
+  --debug-file=<file>             file to log debug info to
   --repetitions=<number>          number of times to repeat each program
   --csc-options=<csc options>     options to give csc when compiling programs
   --runtime-options=<options>     runtime options
@@ -381,6 +389,10 @@ EOF
   (programs-dir (or (cmd-line-arg '--programs-dir args) (programs-dir)))
   (skip-programs (or (cmd-line-arg '--skip-programs args) (skip-programs)))
   (log-file (or (cmd-line-arg '--log-file args) (log-file)))
+  (debug-file (and-let* ((df (cmd-line-arg '--debug-file args)))
+                (if (absolute-pathname? df)
+                    df
+                    (make-pathname (current-directory) df))))
   (csc-options (or (cmd-line-arg '--csc-options args) (csc-options)))
   (runtime-options (or (cmd-line-arg '--runtime-options args) (runtime-options)))
   (repetitions (or (and-let* ((r (cmd-line-arg '--repetitions args)))
@@ -405,6 +417,15 @@ EOF
                    (make-pathname #f (->string prog) "scm"))
                  (programs)))
 
+  ;; Mark the current benchmark in the debug file
+  (when (debug-file)
+    (with-output-to-file (debug-file)
+      (lambda ()
+        (print "======================== " (time->string (seconds->local-time)))
+        (print "csc options: " (csc-options))
+        (print "Runtime options: " (runtime-options))
+        (newline))
+      append:))
 
   (when (installation-prefix)
     (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
