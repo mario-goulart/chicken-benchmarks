@@ -209,6 +209,40 @@ mGC[7] => number of minor GCs
     (newline)
     (flush-output)))
 
+(define (global-counts results)
+  (let loop ((results results)
+             (compile-time 0)
+             (cpu-time 0)
+             (major-gcs-time 0)
+             (mutations 0)
+             (mutations-tracked 0)
+             (minor-gcs 0)
+             (major-gcs 0))
+    (if (null? results)
+        `((compile-time      . ,compile-time)
+          (cpu-time          . ,cpu-time)
+          (major-gcs-time    . ,major-gcs-time)
+          (mutations         . ,mutations)
+          (mutations-tracked . ,mutations-tracked)
+          (minor-gcs         . ,minor-gcs)
+          (major-gcs         . ,major-gcs))
+        (let* ((result (car results))
+               (result-objs (cddr result)))
+          (loop (cdr results)
+                (+ compile-time (cadr result))
+                (+ cpu-time
+                   (apply + (map bench-result-cpu-time result-objs)))
+                (+ major-gcs-time
+                   (apply + (map bench-result-major-gcs-time result-objs)))
+                (+ mutations
+                   (apply + (map bench-result-mutations result-objs)))
+                (+ mutations-tracked
+                   (apply + (map bench-result-mutations-tracked result-objs)))
+                (+ minor-gcs
+                   (apply + (map bench-result-minor-gcs result-objs)))
+                (+ major-gcs
+                   (apply + (map bench-result-major-gcs result-objs))))))))
+
 (define (write-log! results)
   (with-output-to-file (log-file)
     (lambda ()
@@ -223,7 +257,8 @@ mGC[7] => number of minor GCs
                                  (append (list prog compile-time)
                                          (map bench-result->alist
                                               results))))
-                             results)))))))
+                             results))))))
+  (global-counts results))
 
 
 (define (display-env num-progs)
@@ -240,20 +275,26 @@ EOF
 ))
 
 (define (prettify-time seconds)
-  (define (pretty-time seconds)
+  (define (pretty-time seconds millisecs)
     (cond ((zero? seconds)
            "")
           ((< seconds 60)
-           (conc seconds "s"))
+           (conc (+ seconds millisecs) "s"))
           ((< seconds 3600)
            (let ((mins (quotient seconds 60)))
-             (conc mins "m" (pretty-time (- seconds (* 60 mins))))))
+             (conc mins "m" (pretty-time (- seconds (* 60 mins))
+                                         millisecs))))
           (else
            (let ((hours (quotient seconds 3600)))
-             (conc hours "h" (pretty-time (- seconds (* 3600 hours))))))))
+             (conc hours "h" (pretty-time (- seconds (* 3600 hours))
+                                          millisecs))))))
   (if (zero? seconds)
       "0s"
-      (pretty-time (inexact->exact seconds))))
+      (let* ((exact (inexact->exact (truncate seconds)))
+             (millisecs (- seconds exact)))
+        (if (zero? exact)
+            (conc millisecs "s")
+            (pretty-time exact millisecs)))))
 
 
 (define (run-all)
@@ -358,9 +399,18 @@ EOF
   (when (installation-prefix)
     (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
 
-  (let ((start (current-seconds)))
-    (run-all)
-    (print "\nTotal run time: "
-           (prettify-time (- (current-seconds) start)))))
+  (let ((counts (run-all)))
+    (print #<#EOF
+
+Total compile time:             #(prettify-time (alist-ref 'compile-time counts))
+Total run time (CPU time):      #(prettify-time (alist-ref 'cpu-time counts))
+Total time spent in major GCs:  #(prettify-time (alist-ref 'major-gcs-time counts))
+Total mutations:                #(alist-ref 'mutations counts)
+Total mutations tracked:        #(alist-ref 'mutations-tracked counts)
+Total number of minor GCs       #(alist-ref 'minor-gcs counts)
+Total number of major GCs       #(alist-ref 'major-gcs counts)
+
+EOF
+)))
 
 ) ;; end module
