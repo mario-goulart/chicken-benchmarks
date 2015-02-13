@@ -399,6 +399,13 @@ EOF
                      (string->number r))
                    (repetitions)))
 
+  ;; Don't clobber log files
+  (when (file-exists? (log-file))
+    (fprintf (current-error-port)
+             "'~a' already exists.  Won't clobber it.  Aborting.\n"
+             (log-file))
+    (exit 1))
+
   ;; Determine programs to be run
   (programs (cond ((cmd-line-arg '--programs args)
                    => (lambda (progs)
