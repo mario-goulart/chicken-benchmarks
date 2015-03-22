@@ -125,8 +125,7 @@ exec csi -s $0 "$@"
   (run-shell-command (sprintf "~a ~a ~a" (csc) (csc-options) prog)))
 
 (define (run bin)
-  ;; Return a list of bench-result objects in case of normal execution
-  ;; or #f in case of failure
+  ;; Return a list of bench-result objects
   (let loop ((n (repetitions))
              (results '()))
     (if (zero? n)
@@ -138,11 +137,13 @@ exec csi -s $0 "$@"
                            (sprintf "~a ~a"
                                     (make-pathname "." bin)
                                     (runtime-options))))))
-          (let ((time-line (last (string-split output "\n"))))
-            (and (zero? status)
-                 (loop (- n 1)
-                       (cons (parse-time-output (string-chomp time-line))
-                             results))))))))
+          (loop (- n 1)
+                (if (zero? status)
+                    (let ((time-line (last (string-split output "\n"))))
+                      (cons (parse-time-output (string-chomp time-line))
+                             results))
+                    (cons (make-failure-bench-result)
+                          results)))))))
 
 
 (define 1st-col-width 3)
@@ -200,19 +201,30 @@ mGC[7] => number of minor GCs
       (inexact->exact num)
       num))
 
+(define (make-failure-results)
+  (make-list 6 #f))
+
+(define (make-failure-bench-result)
+  (apply make-bench-result (make-failure-results)))
+
+(define (failure-bench-result? bench-result)
+  (not (bench-result-cpu-time bench-result)))
+
 (define (display-results compile-time results)
   (let ((vals
-         (map maybe-drop-.0
-              (list compile-time
-                    (average results bench-result-cpu-time)
-                    (average results bench-result-major-gcs-time)
-                    (average results bench-result-mutations)
-                    (average results bench-result-mutations-tracked)
-                    (average results bench-result-major-gcs)
-                    (average results bench-result-minor-gcs)))))
+         (if (failure-bench-result? (car results))
+             (cons compile-time (make-failure-results))
+             (map maybe-drop-.0
+                  (list compile-time
+                        (average results bench-result-cpu-time)
+                        (average results bench-result-major-gcs-time)
+                        (average results bench-result-mutations)
+                        (average results bench-result-mutations-tracked)
+                        (average results bench-result-major-gcs)
+                        (average results bench-result-minor-gcs))))))
     (for-each (lambda (val idx)
                 (display (string-pad-right
-                          (if results
+                          (if val
                               (->string val)
                               "FAIL")
                           (cdr (list-ref cols idx))
@@ -231,7 +243,8 @@ mGC[7] => number of minor GCs
              (mutations 0)
              (mutations-tracked 0)
              (minor-gcs 0)
-             (major-gcs 0))
+             (major-gcs 0)
+             (failures 0))
     (if (null? results)
         `((compile-time      . ,compile-time)
           (cpu-time          . ,cpu-time)
@@ -239,25 +252,27 @@ mGC[7] => number of minor GCs
           (mutations         . ,mutations)
           (mutations-tracked . ,mutations-tracked)
           (minor-gcs         . ,minor-gcs)
-          (major-gcs         . ,major-gcs))
+          (major-gcs         . ,major-gcs)
+          (failures          . ,failures))
         (let* ((result (car results))
-               (result-objs (cddr result)))
+               (result-objs (cddr result))
+               (failure? (failure-bench-result? (car result-objs)))
+               (maybe-sum (lambda (accessor)
+                            (if failure?
+                                0
+                                (apply + (map accessor result-objs))))))
           (loop (cdr results)
                 (+ compile-time (cadr result))
-                (+ cpu-time
-                   (apply + (map bench-result-cpu-time result-objs)))
-                (+ major-gcs-time
-                   (apply + (map bench-result-major-gcs-time result-objs)))
-                (+ mutations
-                   (apply + (map bench-result-mutations result-objs)))
-                (+ mutations-tracked
-                   (apply + (map bench-result-mutations-tracked result-objs)))
-                (+ minor-gcs
-                   (apply + (map bench-result-minor-gcs result-objs)))
-                (+ major-gcs
-                   (apply + (map bench-result-major-gcs result-objs))))))))
+                (+ cpu-time (maybe-sum bench-result-cpu-time))
+                (+ major-gcs-time (maybe-sum bench-result-major-gcs-time))
+                (+ mutations (maybe-sum bench-result-mutations))
+                (+ mutations-tracked (maybe-sum bench-result-mutations-tracked))
+                (+ minor-gcs (maybe-sum bench-result-minor-gcs))
+                (+ major-gcs (maybe-sum bench-result-major-gcs))
+                (+ failures (if failure? 1 0)))))))
 
 (define (write-log! results)
+  ;; `results' is a list of ("prog" <build-time> <bench-result1> ...)
   (with-output-to-file (log-file)
     (lambda ()
       (pp `((log-format-version . 1)
@@ -318,8 +333,9 @@ EOF
          (all-results '())
          (add-results!
           (lambda (prog compile-time results)
-            (set! all-results (cons (cons prog (cons compile-time results))
-                                    all-results)))))
+            (set! all-results
+              (cons (cons prog (cons compile-time results))
+                    all-results)))))
     (change-directory (programs-dir))
     (display-env num-progs)
     (display-header)
@@ -447,7 +463,7 @@ Total mutations:                #(alist-ref 'mutations counts)
 Total mutations tracked:        #(alist-ref 'mutations-tracked counts)
 Total number of minor GCs       #(alist-ref 'minor-gcs counts)
 Total number of major GCs       #(alist-ref 'major-gcs counts)
-
+Total number failures           #(alist-ref 'failures counts)
 EOF
 )))
 
