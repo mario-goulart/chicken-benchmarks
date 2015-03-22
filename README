@@ -118,3 +118,31 @@ Example:
   traverse__________________1.00______1.10
   travinit__________________1.00______1.05
   triangl___________________1.00______1.04
+
+
+query.scm can be used to extract some specific information out of
+benchmark log files.  Examples:
+
+  $ ./query.scm -h
+  Usage: query.scm <command> [<options>] log-file
+  
+  <command>s are:
+  csc-options
+  programs
+  repetitions
+  runtime-options
+  cpu-time [--programs=<prog1>[,prog2...]]
+  major-gcs-time [--programs=<prog1>[,prog2...]]
+  mutations [--programs=<prog1>[,prog2...]]
+  mutations-tracked [--programs=<prog1>[,prog2...]]
+  major-gcs [--programs=<prog1>[,prog2...]]
+  minor-gcs [--programs=<prog1>[,prog2...]]
+  
+  $ ./query.scm runtime-options benchmark.log
+  -:s256k
+  
+  $ ./query.scm cpu-time benchmark.log 
+  525.331999999999
+  
+  $ ./query.scm cpu-time --programs=maze,psyntax benchmark.log 
+  8.456
