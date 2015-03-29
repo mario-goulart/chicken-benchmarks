@@ -59,6 +59,14 @@ progs/triangl
 progs/kernwyk-wc
 progs/kernwyk-ackermann
 progs/kernwyk-array
+progs/fibfp
+progs/gcbench
+progs/ntakl
+progs/paraffins
+progs/parsing
+progs/simplex
+progs/pnpoly
+progs/ray
 progs/srfi-13/string-ci-equal
 progs/srfi-13/string-concatenate
 progs/srfi-13/string-contains
