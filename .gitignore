@@ -67,6 +67,7 @@ progs/parsing
 progs/simplex
 progs/pnpoly
 progs/ray
+progs/ray2
 progs/knucleotide
 progs/srfi-13/string-ci-equal
 progs/srfi-13/string-concatenate
