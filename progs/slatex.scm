@@ -1,3 +1,5 @@
+(use posix)
+
 (define slatex-iters       20)
 
 (define (fatal-error . args)
