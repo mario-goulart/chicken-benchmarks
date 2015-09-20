@@ -5,7 +5,7 @@
 
 ;;; Adapted from chibi to CHICKEN --mario
 
-(use extras srfi-69)
+(use data-structures extras srfi-69)
 
 (define (string-copy! dst dstart src start end)
   (do ((i dstart (+ i 1))

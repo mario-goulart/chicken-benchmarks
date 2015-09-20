@@ -3,7 +3,7 @@
 exec csi -s $0 "$@"
 |#
 
-(use posix utils srfi-1 irregex)
+(use posix extras utils files data-structures srfi-1 srfi-13 irregex)
 (use (only setup-api program-path))
 
 ;;; Configurable parameters
@@ -22,7 +22,7 @@ exec csi -s $0 "$@"
   (map string->symbol
        (sort (map pathname-file
                   (glob (make-pathname (programs-dir) "*.scm")))
-             string<)))
+             string<?)))
 
 
 (define (csc)
