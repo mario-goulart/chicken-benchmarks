@@ -49,7 +49,8 @@ exec csi -s $0 "$@"
   (and (##sys#tty-port? (current-output-port))
        (member (get-environment-variable "TERM")
                '("xterm" "xterm-color" "xterm-256color" "rxvt" "kterm"
-                 "linux" "screen" "screen-256color" "vt100"))))
+                 "linux" "screen" "screen-256color" "vt100"
+                 "rxvt-unicode-256color"))))
 
 (define (green text)
   (if ansi-term?
