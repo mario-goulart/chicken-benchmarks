@@ -46,7 +46,7 @@ exec csi -s $0 "$@"
 
 
 (define ansi-term? ;; adapted from the test egg
-  (and (##sys#tty-port? (current-output-port))
+  (and (terminal-port? (current-output-port))
        (member (get-environment-variable "TERM")
                '("xterm" "xterm-color" "xterm-256color" "rxvt" "kterm"
                  "linux" "screen" "screen-256color" "vt100"
