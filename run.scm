@@ -3,8 +3,6 @@
 exec csi -s $0 "$@"
 |#
 
-(module run-benchmarks ()
-
 (import chicken scheme)
 
 (use data-structures extras files posix utils srfi-1 srfi-13 irregex)
@@ -466,5 +464,3 @@ Total number of major GCs       #(alist-ref 'major-gcs counts)
 Total number failures           #(alist-ref 'failures counts)
 EOF
 )))
-
-) ;; end module
