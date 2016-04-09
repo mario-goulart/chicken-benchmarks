@@ -3,7 +3,7 @@
 exec csi -s $0 "$@"
 |#
 
-(use data-structures posix srfi-13 srfi-1)
+(use data-structures files posix srfi-13 srfi-1)
 
 (define progs/pad 20)
 (define results/pad 10)
