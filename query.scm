@@ -28,7 +28,7 @@ exec csi -s $0 "$@"
       (if (null? progs-data)
           times
           (let* ((prog-data (car progs-data))
-                 (data-blocks (cdddr prog-data)))
+                 (data-blocks (cddr prog-data)))
             (loop
              (if (or (not programs)
                      (member (car prog-data) programs))
