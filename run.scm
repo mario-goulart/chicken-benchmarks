@@ -401,7 +401,6 @@ EOF
   ;; Set parameters according to options passed via command line (they
   ;; clobber config file options)
   (programs-dir (or (cmd-line-arg '--programs-dir args) (programs-dir)))
-  (skip-programs (or (cmd-line-arg '--skip-programs args) (skip-programs)))
   (log-file (or (cmd-line-arg '--log-file args) (log-file)))
   (debug-file (and-let* ((df (cmd-line-arg '--debug-file args)))
                 (if (absolute-pathname? df)
@@ -426,8 +425,15 @@ EOF
                         (map string->symbol (string-split progs ","))))
                   (else (or (programs) (all-progs)))))
 
+  (skip-programs (append
+                  (skip-programs)
+                  (cond ((cmd-line-arg '--skip-programs args)
+                         => (lambda (progs)
+                              (map string->symbol (string-split progs ","))))
+                        (else '()))))
+
   ;; Remove skipped programs
-  (programs (if (null? skip-programs)
+  (programs (if (null? (skip-programs))
                 (programs)
                 (remove (lambda (prog)
                           (memq prog (skip-programs)))
