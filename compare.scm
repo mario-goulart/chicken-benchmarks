@@ -167,7 +167,8 @@ exec csi -s $0 "$@"
                            (map (lambda (log)
                                   (let* ((results (get-log-results-by-metric log metric))
                                          (prog-results (alist-ref prog results equal?)))
-                                    (if (eq? metric 'build-time)
+                                    ;; If a test is missing then prog-results is #f
+                                    (if (or (eq? metric 'build-time) (not prog-results))
                                         prog-results
                                         (average prog-results))))
                                 logs)))
