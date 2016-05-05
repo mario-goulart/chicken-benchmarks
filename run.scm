@@ -145,7 +145,7 @@ exec csi -s $0 "$@"
 
 
 (define 1st-col-width 3)
-(define 2nd-col-width 23)
+(define 2nd-col-width 15)
 
 (define col-padding "  ")
 
@@ -153,31 +153,36 @@ exec csi -s $0 "$@"
   (map (lambda (label)
          (cons label (string-length label)))
        '("BT [1]"
-         "CT [2]"
-         "MGT[3]"
-         "Mut[4]"
-         "MT [5]"
-         "MGC[6]"
-         "mGC[7]")))
+         "BS [2]"
+         "CT [3]"
+         "MGT[4]"
+         "Mut[5]"
+         "MT [6]"
+         "MGC[7]"
+         "mGC[8]")))
 
 (define (display-header)
   (print "Columns legend:
 
 BT [1] => Build time (seconds)
-CT [2] => CPU time (seconds)
-MGT[3] => Major GCs time (seconds)
-Mut[4] => number of mutations
-MT [5] => number of tracked mutations
-MGC[6] => number of major GCs
-mGC[7] => number of minor GCs
+BS [2] => Binary size (bytes)
+CT [3] => CPU time (seconds)
+MGT[4] => Major GCs time (seconds)
+Mut[5] => number of mutations
+MT [6] => number of tracked mutations
+MGC[7] => number of major GCs
+mGC[8] => number of minor GCs
 ")
   (display (string-append
             (make-string 1st-col-width)
             (string-pad-right "Programs" 2nd-col-width)))
-  (for-each (lambda (col)
-              (display col)
-              (display col-padding))
-            (map car cols))
+  (let ((col-labels (map car cols)))
+    (for-each (lambda (col)
+                (display col)
+                (display col-padding))
+              (butlast col-labels))
+    ;; Don't pad the last column
+    (display (last col-labels)))
   (newline)
   (flush-output))
 
@@ -208,18 +213,20 @@ mGC[7] => number of minor GCs
 (define (failure-bench-result? bench-result)
   (not (bench-result-cpu-time bench-result)))
 
-(define (display-results compile-time results)
-  (let ((vals
-         (if (failure-bench-result? (car results))
-             (cons compile-time (make-failure-results))
-             (map maybe-drop-.0
-                  (list compile-time
-                        (average results bench-result-cpu-time)
-                        (average results bench-result-major-gcs-time)
-                        (average results bench-result-mutations)
-                        (average results bench-result-mutations-tracked)
-                        (average results bench-result-major-gcs)
-                        (average results bench-result-minor-gcs))))))
+(define (display-results compile-time bin-size results)
+  (let* ((vals
+          (if (failure-bench-result? (car results))
+              (cons compile-time (cons bin-size (make-failure-results)))
+              (map maybe-drop-.0
+                   (list compile-time
+                         bin-size
+                         (average results bench-result-cpu-time)
+                         (average results bench-result-major-gcs-time)
+                         (average results bench-result-mutations)
+                         (average results bench-result-mutations-tracked)
+                         (average results bench-result-major-gcs)
+                         (average results bench-result-minor-gcs)))))
+         (ncols (length vals)))
     (for-each (lambda (val idx)
                 (display (string-pad-right
                           (if val
@@ -227,15 +234,17 @@ mGC[7] => number of minor GCs
                               "FAIL")
                           (cdr (list-ref cols idx))
                           #\space))
-                (display col-padding))
+                (unless (= idx (- ncols 1))
+                  (display col-padding)))
               vals
-              (iota (length vals)))
+              (iota ncols))
     (newline)
     (flush-output)))
 
 (define (global-counts results)
   (let loop ((results results)
              (compile-time 0)
+             (bin-size 0)
              (cpu-time 0)
              (major-gcs-time 0)
              (mutations 0)
@@ -245,6 +254,7 @@ mGC[7] => number of minor GCs
              (failures 0))
     (if (null? results)
         `((compile-time      . ,compile-time)
+          (bin-size          . ,bin-size)
           (cpu-time          . ,cpu-time)
           (major-gcs-time    . ,major-gcs-time)
           (mutations         . ,mutations)
@@ -253,7 +263,7 @@ mGC[7] => number of minor GCs
           (major-gcs         . ,major-gcs)
           (failures          . ,failures))
         (let* ((result (car results))
-               (result-objs (cddr result))
+               (result-objs (cdddr result))
                (failure? (failure-bench-result? (car result-objs)))
                (maybe-sum (lambda (accessor)
                             (if failure?
@@ -261,6 +271,7 @@ mGC[7] => number of minor GCs
                                 (apply + (map accessor result-objs))))))
           (loop (cdr results)
                 (+ compile-time (cadr result))
+                (+ bin-size (caddr result))
                 (+ cpu-time (maybe-sum bench-result-cpu-time))
                 (+ major-gcs-time (maybe-sum bench-result-major-gcs-time))
                 (+ mutations (maybe-sum bench-result-mutations))
@@ -270,10 +281,10 @@ mGC[7] => number of minor GCs
                 (+ failures (if failure? 1 0)))))))
 
 (define (write-log! results)
-  ;; `results' is a list of ("prog" <build-time> <bench-result1> ...)
+  ;; `results' is a list of ("prog" <build-time> <bin-size> <bench-result1> ...)
   (with-output-to-file (log-file)
     (lambda ()
-      (pp `((log-format-version . 1)
+      (pp `((log-format-version . 2)
             (repetitions . ,(repetitions))
             (installation-prefix . ,(installation-prefix))
             (csc-options . ,(csc-options))
@@ -281,8 +292,9 @@ mGC[7] => number of minor GCs
             (results . ,(map (lambda (result)
                                (let ((prog (car result))
                                      (compile-time (cadr result))
-                                     (results (cddr result)))
-                                 (append (list prog compile-time)
+                                     (bin-size (caddr result))
+                                     (results (cdddr result)))
+                                 (append (list prog compile-time bin-size)
                                          (map bench-result->alist
                                               results))))
                              results))))))
@@ -297,7 +309,7 @@ Using #(csc) #(csc-options)
 Total number of programs to benchmark: #num-progs
 
 The values displayed correspond to the arithmetic mean of
-all results (except build time).
+all results (except build time and binary size).
 
 EOF
 ))
@@ -330,9 +342,9 @@ EOF
          (num-progs (length (programs)))
          (all-results '())
          (add-results!
-          (lambda (prog compile-time results)
+          (lambda (prog compile-time bin-size results)
             (set! all-results
-              (cons (cons prog (cons compile-time results))
+              (cons (cons prog (cons compile-time (cons bin-size results)))
                     all-results)))))
     (change-directory (programs-dir))
     (display-env num-progs)
@@ -344,9 +356,11 @@ EOF
                (bin (pathname-strip-extension prog)))
           (display-result/prog bin progno)
           (let-values (((status output compile-time) (compile prog)))
-            (let ((results (and (zero? status) (run bin))))
-              (add-results! bin compile-time results)
-              (display-results compile-time results))))
+            (let* ((compilation-ok? (zero? status))
+                   (results (and compilation-ok? (run bin)))
+                   (bin-size (and compilation-ok? (file-size bin))))
+              (add-results! bin compile-time bin-size results)
+              (display-results compile-time bin-size results))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
     (write-log! all-results)))
@@ -461,6 +475,7 @@ EOF
     (print #<#EOF
 
 Total compile time:             #(prettify-time (alist-ref 'compile-time counts))
+Total binary size (bytes):      #(alist-ref 'bin-size counts)
 Total run time (CPU time):      #(prettify-time (alist-ref 'cpu-time counts))
 Total time spent in major GCs:  #(prettify-time (alist-ref 'major-gcs-time counts))
 Total mutations:                #(alist-ref 'mutations counts)
