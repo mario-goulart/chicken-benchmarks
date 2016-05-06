@@ -15,7 +15,7 @@ exec csi -s $0 "$@"
   (alist-ref 'csc-options (read-log log-file)))
 
 (define (query-programs log-file)
-  (let* ((results (alist-ref 'results (read-log log-file))))
+  (let ((results (alist-ref 'results (read-log log-file))))
     (map car results)))
 
 (define (query-repetitions log-file)
