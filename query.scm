@@ -9,7 +9,15 @@ exec csi -s $0 "$@"
 (use data-structures extras irregex files ports posix srfi-1 srfi-13)
 
 (define (read-log log-file)
-  (with-input-from-file log-file read))
+  (let* ((data (with-input-from-file log-file read))
+         (version (alist-ref 'log-format-version data)))
+    (when (or (not version)
+              (not (= version 2)))
+      (fprintf (current-error-port)
+               "Unsupported log version: ~a.  Only log version 2 is supported.\n"
+               version)
+      (exit 1))
+    data))
 
 (define (query-csc-options log-file)
   (alist-ref 'csc-options (read-log log-file)))
@@ -23,21 +31,27 @@ exec csi -s $0 "$@"
 
 (define (query-bench-data field log-file programs)
   (let ((all-results (alist-ref 'results (read-log log-file))))
-    (let loop ((times '())
+    (let loop ((vals '())
                (progs-data all-results))
       (if (null? progs-data)
-          times
+          vals
           (let* ((prog-data (car progs-data))
-                 (data-blocks (cddr prog-data)))
+                 (data-blocks (cdddr prog-data)))
             (loop
              (if (or (not programs)
                      (member (car prog-data) programs))
-                 (append
-                  (map (lambda (block)
-                         (alist-ref field block))
-                       data-blocks)
-                  times)
-                 times)
+                 (case field
+                   ((build-time)
+                    (cons (cadr prog-data) vals))
+                   ((bin-size)
+                    (cons (caddr prog-data) vals))
+                   (else
+                    (append
+                     (map (lambda (block)
+                            (alist-ref field block))
+                          data-blocks)
+                     vals)))
+                 vals)
              (cdr progs-data)))))))
 
 (define (sum-up-field-values field log-file programs)
@@ -75,6 +89,8 @@ csc-options
 programs
 repetitions
 runtime-options
+build-time [--programs=<prog1>[,prog2...]]
+bin-size [--programs=<prog1>[,prog2...]]
 cpu-time [--programs=<prog1>[,prog2...]]
 major-gcs-time [--programs=<prog1>[,prog2...]]
 mutations [--programs=<prog1>[,prog2...]]
@@ -115,7 +131,8 @@ EOF
                (query-programs log-file))
               ((repetitions)
                (query-repetitions log-file))
-              ((cpu-time major-gcs-time mutations mutations-tracked major-gcs minor-gcs)
+              ((build-time bin-size cpu-time major-gcs-time mutations
+                mutations-tracked major-gcs minor-gcs)
                (let ((programs (cmd-line-arg '--programs options)))
                  (sum-up-field-values command
                                       log-file
