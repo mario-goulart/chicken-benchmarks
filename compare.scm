@@ -121,12 +121,13 @@ exec csi -s $0 "$@"
     (newline)))
 
 
-(define-record log version repetitions installation-prefix csc-options results)
+(define-record log file version repetitions installation-prefix csc-options results)
 
 
 (define (read-log log-file)
   (let ((log-data (with-input-from-file log-file read)))
-    (make-log (alist-ref 'log-format-version log-data)
+    (make-log log-file
+              (alist-ref 'log-format-version log-data)
               (alist-ref 'repetitions log-data)
               (alist-ref 'installation-prefix log-data)
               (alist-ref 'csc-options log-data)
@@ -139,22 +140,39 @@ exec csi -s $0 "$@"
   ;;1> (define l (with-input-from-file "benchmark.log" read))
   ;;2> (define r (alist-ref 'results l))
   (let ((results (log-results log)))
-    (if (eq? metric 'build-time)
-        (map (lambda (result)
-               (cons (car result)
-                     (cadr result)))
-             results)
-        (map (lambda (prog-data)
-               (let ((prog (car prog-data))
-                     (result-subsets (cddr prog-data)))
-                 (cons prog
-                       (map (lambda (result-subset)
-                              (alist-ref metric result-subset))
-                            result-subsets))))
-             results))))
+    (case metric
+      ((build-time)
+       (map (lambda (result)
+              (cons (car result)
+                    (cadr result)))
+            results))
+      ((bin-size)
+       (map (lambda (result)
+              (cons (car result)
+                    (caddr result)))
+            results))
+      (else
+       (map (lambda (prog-data)
+              (let ((prog (car prog-data))
+                    (result-subsets (cdddr prog-data)))
+                (cons prog
+                      (map (lambda (result-subset)
+                             (alist-ref metric result-subset))
+                           result-subsets))))
+            results)))))
 
 
 (define (compare logs metrics)
+  (unless (every (lambda (v) (= v 2)) (map log-version logs))
+    (fprintf (current-error-port)
+             "Only log version 2 is supported.\n")
+    (for-each (lambda (log)
+                (fprintf (current-error-port)
+                         "  * ~a: version ~a\n"
+                         (log-file log)
+                         (log-version log)))
+              logs)
+    (exit 1))
   (let ((progs (sort (map car (log-results (car logs))) string<)))
     (display-header logs)
     (for-each
@@ -163,15 +181,17 @@ exec csi -s $0 "$@"
        (display-columns-header logs)
        (for-each
         (lambda (prog)
-          (display-results prog
-                           (map (lambda (log)
-                                  (let* ((results (get-log-results-by-metric log metric))
-                                         (prog-results (alist-ref prog results equal?)))
-                                    ;; If a test is missing then prog-results is #f
-                                    (if (or (eq? metric 'build-time) (not prog-results))
-                                        prog-results
-                                        (average prog-results))))
-                                logs)))
+          (display-results
+           prog
+           (map (lambda (log)
+                  (let* ((results (get-log-results-by-metric log metric))
+                         (prog-results (alist-ref prog results equal?)))
+                    ;; If a test is missing then prog-results is #f
+                    (if (or (memq metric '(build-time bin-size))
+                            (not prog-results))
+                        prog-results
+                        (average prog-results))))
+                logs)))
         progs)
        (print "\n"))
      metrics)))
@@ -227,7 +247,7 @@ EOF
         (remove (lambda (arg)
                   (string-prefix? "--" arg))
                 args))
-       (all-metrics '(build-time cpu-time major-gcs-time mutations
+       (all-metrics '(build-time bin-size cpu-time major-gcs-time mutations
                       mutations-tracked major-gcs minor-gcs)))
 
   (when (member "--list-metrics" args)
