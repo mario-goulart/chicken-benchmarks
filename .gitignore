@@ -14,6 +14,7 @@ progs/div-iter
 progs/div-rec
 progs/dynamic
 progs/earley
+progs/fannkuch
 progs/fft
 progs/fib
 progs/fibc
@@ -22,13 +23,18 @@ progs/fp-numbers.data.out
 progs/fprint
 progs/fprint.tst
 progs/fread
+progs/gold
+progs/gold2
 progs/graphs
 progs/hanoi
+progs/integ
+progs/integ2
 progs/kanren
 progs/kernwyk-tail
 progs/lattice
 progs/maze
 progs/mazefun
+progs/mbrot
 progs/nbody
 progs/nboyer
 progs/nestedloop
@@ -39,6 +45,7 @@ progs/primes
 progs/psyntax
 progs/psyntax-input.txt
 progs/puzzle
+progs/ray.out
 progs/sboyer
 progs/scheme
 progs/sieves-eratosthenes
