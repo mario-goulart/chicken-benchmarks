@@ -10,6 +10,7 @@ progs/ctak
 progs/dderiv
 progs/deriv
 progs/destructive
+progs/dfa
 progs/div-iter
 progs/div-rec
 progs/dynamic
@@ -32,6 +33,7 @@ progs/integ2
 progs/kanren
 progs/kernwyk-tail
 progs/lattice
+progs/matrix
 progs/maze
 progs/mazefun
 progs/mbrot
