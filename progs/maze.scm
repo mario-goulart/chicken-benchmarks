@@ -12,6 +12,10 @@
 
 ;;; Rehacked by Olin 4/1995.
 
+(cond-expand
+  (chicken-5 (import (chicken bitwise)))
+  (else #f))
+
 (define (random-state n)
   (cons n #f))
 
