@@ -4,6 +4,13 @@ Some benchmark programs have been taken from CHICKEN version 4.2.0 and
 other programs have been adapted from other benchmark suites or just
 made for this suite.
 
+Before you can use it with CHICKEN 5, you must run this command first:
+
+  $ chicken-install srfi-1 srfi-13 srfi-69
+
+In CHICKEN 4, these extensions are included with the base system, so
+you don't need to install anything.
+
 A simpler runner (run.scm) is available:
 
   $ ./run.scm -h

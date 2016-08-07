@@ -3,8 +3,6 @@
 ;; Changed by Matthew 2006/08/21 to move string->list out of the loop
 
   
-(define (recursive-nfa input)
-  
   (define (state0 input)
     (or (state1 input) (state3 input) #f))
   
@@ -38,6 +36,8 @@
          (char=? (cadr input) #\c)
          'state4))
 
+(define (recursive-nfa input)
+  
   (or (state0 input)
       'fail))
 

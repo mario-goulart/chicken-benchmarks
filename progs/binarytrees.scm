@@ -2,6 +2,10 @@
 ;;; http://shootout.alioth.debian.org/
 ;;; contributed by Sven Hartrumpf
 
+(cond-expand
+  (chicken-5 (import (chicken bitwise)))
+  (else #f))
+
 (define make (lambda (item d)
   (if (= d 0)
     (list 'empty item)

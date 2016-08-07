@@ -5,7 +5,11 @@
 
 ;;; Adapted from chibi to CHICKEN --mario
 
-(use data-structures extras srfi-69)
+(cond-expand
+  (chicken-4
+   (use data-structures extras srfi-69))
+  (chicken-5
+   (import (chicken io) (only (chicken data-structures) sort) srfi-69)))
 
 (define (string-copy! dst dstart src start end)
   (do ((i dstart (+ i 1))

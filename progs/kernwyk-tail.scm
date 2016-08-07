@@ -7,7 +7,9 @@
 ;;; the entire input is read line by line before any output
 ;;; is produced, and the lines are then written to the output
 ;;; in the reverse of the order in which they were read.
-(use extras)
+(cond-expand
+  (chicken-4 (use extras))
+  (chicken-5 (import (chicken io))))
 
 (define (tail-r-aux port file-so-far)
   (let ((x (read-line port)))
