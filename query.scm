@@ -6,7 +6,12 @@ exec csi -s $0 "$@"
 (module query-benchmark-log ()
 
 (import chicken scheme)
-(use data-structures extras irregex files ports posix srfi-1 srfi-13)
+(cond-expand
+  (chicken-4
+   (use data-structures extras irregex files ports posix srfi-1 srfi-13))
+  (chicken-5
+   (import (chicken pathname) (chicken data-structures) (chicken irregex)
+           (chicken ports) (chicken format) srfi-1 srfi-13)))
 
 (define (read-log log-file)
   (with-input-from-file log-file read))

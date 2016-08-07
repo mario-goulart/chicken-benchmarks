@@ -8,8 +8,6 @@
 (define-constant Width 400)
 (define-constant Height Width)
 
-(define Start-Time (current-seconds))
-
 (define (square x)  (* x x))
 
 (define (add list1 list2)

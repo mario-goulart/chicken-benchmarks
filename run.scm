@@ -5,8 +5,24 @@ exec csi -s $0 "$@"
 
 (import chicken scheme)
 
-(use data-structures extras files posix utils srfi-1 srfi-13 irregex)
-(use (only setup-api program-path))
+(cond-expand
+  (chicken-4
+   (begin
+     (use data-structures extras files posix utils srfi-1 srfi-13 irregex
+          (only setup-api program-path))
+
+     (define (read-full-string p) (read-all p))
+     (define set-environment-variable! setenv)))
+
+  (chicken-5
+   (begin (import (chicken pretty-print) (chicken bitwise) (chicken format)
+                  (chicken posix) (chicken data-structures) (chicken time)
+                  (chicken pathname) (chicken io) (chicken irregex)
+                  (only srfi-1 make-list last remove any iota)
+                  (only srfi-13 string-trim-both string-pad-right)
+                  (only setup-api program-path))
+
+          (define (read-full-string p) (read-string #f p)) )))
 
 ;;; Configurable parameters
 (define repetitions (make-parameter 10))
@@ -36,7 +52,7 @@ exec csi -s $0 "$@"
   ;; Returns (values <status> <output>)
   (let* ((start (current-milliseconds))
          (p (open-input-pipe (string-append command " 2>&1")))
-         (output (read-all p))
+         (output (read-full-string p))
          (duration (- (current-milliseconds) start))
          (exit-code (arithmetic-shift (close-input-pipe p) -8)))
     (when (debug-file)
@@ -392,7 +408,7 @@ EOF
 
   (let ((args-without-options
          (remove (lambda (arg)
-                   (string-prefix? "--" arg))
+                   (substring=? "--" arg))
                  args)))
     (unless (null? args-without-options)
       ;; load config file
@@ -455,7 +471,7 @@ EOF
       append:))
 
   (when (installation-prefix)
-    (setenv "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
+    (set-environment-variable! "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
 
   (let ((counts (run-all)))
     (print #<#EOF
