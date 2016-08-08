@@ -3,6 +3,10 @@
 exec csi -s $0 "$@"
 |#
 
+;; This file is intentionally not wrapped into a module to ease the
+;; use of a config file.  To run this file thorugh the scrutinizer,
+;; use "csc -ASM run.scm".
+
 (import chicken scheme)
 
 (cond-expand
