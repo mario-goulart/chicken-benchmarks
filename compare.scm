@@ -173,10 +173,15 @@ exec csi -s $0 "$@"
                            (map (lambda (log)
                                   (let* ((results (get-log-results-by-metric log metric))
                                          (prog-results (alist-ref prog results equal?)))
-                                    ;; If a test is missing then prog-results is #f
-                                    (if (or (eq? metric 'build-time) (not prog-results))
-                                        prog-results
-                                        (average prog-results))))
+                                    (cond
+                                     ;; If a test is missing then prog-results is #f
+                                     ((or (eq? metric 'build-time) (not prog-results))
+                                      prog-results)
+                                     ;; At least one execution failed
+                                     ((any not prog-results)
+                                      #f)
+                                     ;; Everything is ok.  Calculate the average
+                                     (else (average prog-results)))))
                                 logs)))
         progs)
        (print "\n"))
