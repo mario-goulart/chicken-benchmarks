@@ -173,4 +173,4 @@
     (+ (length (vector-ref x 0))
        (length (vector-ref x 1)))))
 
-(time (nb 23))
+(time (nb 22))

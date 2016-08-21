@@ -341,4 +341,4 @@
       (Sum 0.0 (+ Sum (let ((E (- (r-total I) (i-total I)))) (* E E)))))
    ((> I N) Sum)))
 
-(time (error-sum-of-squares 1000))
+(time (error-sum-of-squares 600))

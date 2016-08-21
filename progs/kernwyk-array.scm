@@ -24,4 +24,4 @@
         (loop (- repeat 1) (my-try n))
         result)))
 
-(time (go 100 1000000))
+(time (go 100 500000))

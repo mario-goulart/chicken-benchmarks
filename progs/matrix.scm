@@ -516,7 +516,7 @@
 (time
 (run-benchmark
  "matrix"
- 1000
+ 300
  (lambda () (really-go 5 5))
  (lambda (result)
   (equal? result

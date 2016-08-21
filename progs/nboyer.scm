@@ -755,5 +755,5 @@
                 rewrite-count
                 #f)))))
 
-(nboyer-benchmark 4)
+(nboyer-benchmark 3)
 

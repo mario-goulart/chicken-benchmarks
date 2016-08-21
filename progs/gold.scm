@@ -85,7 +85,7 @@
 		   (golden func 1.0e-3 ax bx cx (lambda (mx fm) fm)))))
 
 (define (test)
- (let* ((n 1000)
+ (let* ((n 500)
 	(eps (make-vector n 0.0))
 	(sum 0.0))
   (do ((i 0 (+ i 1))) ((>= i n)) (vector-set! eps i (/ 1.0 (+ 2.0 i))))

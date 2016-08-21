@@ -17,4 +17,4 @@
       (sieve primes)
       primes))
 
-(time (primes<2n 60000))
+(time (primes<2n 40000))

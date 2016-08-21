@@ -5,7 +5,7 @@
 ;; This program conses a lot, triggering a huge number of
 ;; garbage collections, thus it serves as a good GC benchmark.
 
-(define-constant Width 400)
+(define-constant Width 300)
 (define-constant Height Width)
 
 (define (square x)  (* x x))

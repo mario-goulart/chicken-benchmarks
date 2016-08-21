@@ -61,6 +61,6 @@
 	     (make-vector n)))
 
 (time
- (do ((i 0 (+ i 1))) ((= i 10))
+ (do ((i 0 (+ i 1))) ((= i 4))
    (write (fannkuch 9))
    (newline)))

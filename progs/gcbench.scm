@@ -179,4 +179,4 @@
       
       (main))))
 
-(time (gcbench 20))
+(time (gcbench 18))

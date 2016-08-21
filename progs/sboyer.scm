@@ -771,4 +771,4 @@
                 rewrite-count
                 #f)))))
 
-(sboyer-benchmark 5)
+(sboyer-benchmark 3)
