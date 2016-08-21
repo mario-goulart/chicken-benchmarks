@@ -4,6 +4,13 @@ Some benchmark programs have been taken from CHICKEN version 4.2.0 and
 other programs have been adapted from other benchmark suites or just
 made for this suite.
 
+Note: if you are running this benchmark suite on a system which
+supports CPU frequency scaling, make sure to use a governor that
+produces more stable results (e.g., performance), otherwise you may
+get too much noise in the results (see
+http://paste.call-cc.org/paste?id=9199f833f1ccae2c9a1234980ffe055c5ab4a677
+for an example).
+
 Before you can use it with CHICKEN 5, you must run this command first:
 
   $ chicken-install srfi-1 srfi-13 srfi-69
