@@ -56,6 +56,21 @@ exec csi -s $0 "$@"
 (define (query-runtime-options log-file)
   (alist-ref 'runtime-options (read-log log-file)))
 
+(define (query-build-time log-file programs)
+  ;; If program is #f, query all programs
+  (let ((results (alist-ref 'results (read-log log-file))))
+    (let loop ((programs (or programs (map car results))))
+      (if (null? programs)
+          0
+          (let* ((program (car programs))
+                 (program-data (alist-ref program results equal?)))
+            (unless program-data
+              (fprintf (current-error-port)
+                       "Error: could not find benchmark data for program ~a.\n"
+                       program)
+              (exit 1))
+            (+ (car program-data) (loop (cdr programs))))))))
+
 (define (cmd-line-arg option args)
   ;; Returns the argument associated to the command line option OPTION
   ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
@@ -80,6 +95,7 @@ csc-options
 programs
 repetitions
 runtime-options
+build-time [--programs=<prog1>[,prog2...]]
 cpu-time [--programs=<prog1>[,prog2...]]
 major-gcs-time [--programs=<prog1>[,prog2...]]
 mutations [--programs=<prog1>[,prog2...]]
@@ -120,12 +136,14 @@ EOF
                (query-programs log-file))
               ((repetitions)
                (query-repetitions log-file))
-              ((cpu-time major-gcs-time mutations mutations-tracked major-gcs minor-gcs)
-               (let ((programs (cmd-line-arg '--programs options)))
-                 (sum-up-field-values command
-                                      log-file
-                                      (and programs
-                                           (string-split programs ",")))))
+              ((build-time cpu-time major-gcs-time mutations mutations-tracked
+                major-gcs minor-gcs)
+               (let* ((programs-str (cmd-line-arg '--programs options))
+                      (programs (and programs-str
+                                     (string-split programs-str ","))))
+                 (if (eq? command 'build-time)
+                     (query-build-time log-file programs)
+                     (sum-up-field-values command log-file programs))))
               ((runtime-options)
                (query-runtime-options log-file))
               (else
