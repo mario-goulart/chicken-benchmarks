@@ -365,8 +365,10 @@ EOF
           (display-result/prog bin progno)
           (let-values (((status output compile-time) (compile prog)))
             (let ((results (and (zero? status) (run bin))))
-              (add-results! bin compile-time results)
-              (display-results compile-time results))))
+              (cond (results
+                     (add-results! bin compile-time results)
+                     (display-results compile-time results))
+                    (else (fprintf (current-error-port) "FAIL\n"))))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
     (write-log! all-results)))
