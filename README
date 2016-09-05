@@ -39,7 +39,7 @@ following parameters:
     found (default = "progs/general")
 
 * repetitions: number of times each benchmark program is executed
-    (default = 3)
+    (default = 10)
 
 * installation-prefix: the CHICKEN installation prefix (default =
   prefix of the running chicken)
