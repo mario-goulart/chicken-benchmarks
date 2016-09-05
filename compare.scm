@@ -169,20 +169,21 @@ exec csi -s $0 "$@"
        (display-columns-header logs)
        (for-each
         (lambda (prog)
-          (display-results prog
-                           (map (lambda (log)
-                                  (let* ((results (get-log-results-by-metric log metric))
-                                         (prog-results (alist-ref prog results equal?)))
-                                    (cond
-                                     ;; If a test is missing then prog-results is #f
-                                     ((or (eq? metric 'build-time) (not prog-results))
-                                      prog-results)
-                                     ;; At least one execution failed
-                                     ((any not prog-results)
-                                      #f)
-                                     ;; Everything is ok.  Calculate the average
-                                     (else (average prog-results)))))
-                                logs)))
+          (display-results
+           prog
+           (map (lambda (log)
+                  (let* ((results (get-log-results-by-metric log metric))
+                         (prog-results (alist-ref prog results equal?)))
+                    (cond
+                     ;; If a test is missing then prog-results is #f
+                     ((or (eq? metric 'build-time) (not prog-results))
+                      prog-results)
+                     ;; At least one execution failed
+                     ((any not prog-results)
+                      #f)
+                     ;; Everything is ok.  Calculate the average
+                     (else (average prog-results)))))
+                logs)))
         progs)
        (print "\n"))
      metrics)))
