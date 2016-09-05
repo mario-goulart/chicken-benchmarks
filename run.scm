@@ -37,7 +37,7 @@ exec csi -s $0 "$@"
 (define debug-file (make-parameter #f))
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
 (define skip-programs (make-parameter '())) ;; list of symbols
-(define programs-dir (make-parameter "progs"))
+(define programs-dir (make-parameter (make-pathname "progs" "general")))
 
 (define (all-progs)
   (map string->symbol
