@@ -145,6 +145,7 @@ benchmark log files.  Examples:
   programs
   repetitions
   runtime-options
+  build-time [--programs=<prog1>[,prog2...]]
   cpu-time [--programs=<prog1>[,prog2...]]
   major-gcs-time [--programs=<prog1>[,prog2...]]
   mutations [--programs=<prog1>[,prog2...]]
