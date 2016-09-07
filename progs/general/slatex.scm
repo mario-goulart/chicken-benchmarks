@@ -2370,6 +2370,7 @@
 
 (define (setup!)
   (use setup-api)
+  (change-directory "inputs")
   (remove-file* "slatexdir")
   (create-directory "slatexdir"))
 
