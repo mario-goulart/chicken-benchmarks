@@ -16,7 +16,7 @@
 ;;; Requires the existence of FPRINT.TST which is created by FPRINT.
 
 (define (fread)
- (call-with-input-file "fprint.tst" (lambda (stream) (read stream))))
+ (call-with-input-file "inputs/fprint.tst" (lambda (stream) (read stream))))
 
 (time (fread)
 )

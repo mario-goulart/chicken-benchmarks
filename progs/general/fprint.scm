@@ -37,7 +37,7 @@
 (define test-pattern (init 8 8 test-atoms))
 
 (define (fprint)
- (call-with-output-file "fprint.tst"
+ (call-with-output-file "inputs/fprint.tst"
   (lambda (stream)
    (newline stream)
    (write test-pattern stream))  ))
