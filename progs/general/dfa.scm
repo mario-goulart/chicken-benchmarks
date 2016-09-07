@@ -777,4 +777,4 @@
   (greedily-collapse
    (build-tree-from-cform-file file-name))))
 
-(time (test "train2000.cform"))
+(time (test "inputs/train2000.cform"))
