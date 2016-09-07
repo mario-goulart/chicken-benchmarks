@@ -16,5 +16,5 @@
 
 (define (go x)
   (call-with-input-file x wcport))
- 
-(time (go "fp-numbers.data"))
+
+(time (go "inputs/fp-numbers.data"))

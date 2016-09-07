@@ -13,4 +13,4 @@
 (define (go input)
   (call-with-input-file input sum))
 
-(time (go "fp-numbers.data"))
+(time (go "inputs/fp-numbers.data"))

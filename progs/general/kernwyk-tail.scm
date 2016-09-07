@@ -31,4 +31,4 @@
       (lambda (out)
         (echo-lines-in-reverse-order in out))))))
 
-(time (go "fp-numbers.data" "fp-numbers.data.out"))
+(time (go "inputs/fp-numbers.data" "fp-numbers.data.out"))

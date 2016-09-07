@@ -20,4 +20,4 @@
       (lambda (out)
         (catport in out))))))
 
-(time (go "fp-numbers.data" "fp-numbers.data.out"))
+(time (go "inputs/fp-numbers.data" "fp-numbers.data.out"))
