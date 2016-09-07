@@ -11007,7 +11007,7 @@
   '*top*)
 
 (time
- (with-input-from-file "psyntax-input.txt"
+ (with-input-from-file "inputs/psyntax-input.txt"
    (lambda ()
      (let loop ()
        (let ((e (read)))
