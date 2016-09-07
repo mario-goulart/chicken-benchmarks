@@ -50,7 +50,7 @@
   (print (hash-table-ref/default table key 0) "\t" key))
 
 (define dna
-  (let ((in (open-input-file "knucleotide-input.txt")))
+  (let ((in (open-input-file "inputs/knucleotide-input.txt")))
     ;; Skip to ">THREE ..."
     (let lp ()
       (let ((line (read-line in)))
