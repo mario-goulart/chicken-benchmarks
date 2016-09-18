@@ -26,6 +26,7 @@ A simpler runner (run.scm) is available:
   <options> are:
     --programs-dir=<directory>      directory where programs are
     --log-file=<file>               the log filename
+    --debug-file=<file>             the debug log filename
     --repetitions=<number>          number of times to repeat each program
     --csc-options=<csc options>     options to give csc when compiling programs
     --programs=<prog1>,<prog2>      a comma-separated list of programs to run
