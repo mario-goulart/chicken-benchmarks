@@ -424,7 +424,7 @@ EOF
   ;; clobber config file options)
   (programs-dir (or (cmd-line-arg '--programs-dir args) (programs-dir)))
   (log-file (or (cmd-line-arg '--log-file args) (log-file)))
-  (debug-file (and-let* ((df (cmd-line-arg '--debug-file args)))
+  (debug-file (and-let* ((df (or (cmd-line-arg '--debug-file args) (debug-file))))
                 (if (absolute-pathname? df)
                     df
                     (make-pathname (current-directory) df))))
