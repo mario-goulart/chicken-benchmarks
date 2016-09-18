@@ -29,6 +29,7 @@ A simpler runner (run.scm) is available:
     --debug-file=<file>             the debug log filename
     --repetitions=<number>          number of times to repeat each program
     --csc-options=<csc options>     options to give csc when compiling programs
+    --runtime-options=<options>     runtime options to give programs
     --programs=<prog1>,<prog2>      a comma-separated list of programs to run
     --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
 
