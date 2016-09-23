@@ -192,19 +192,23 @@ exec csi -s $0 "$@"
   (or (and-let* ((m (cmd-line-arg '--metrics args))
                  (ms (map string->symbol
                           (string-split m ","))))
-        (unless (every (lambda (metric)
-                         (memq metric all-metrics))
-                       ms)
-          (fprintf (current-error-port)
-                   "Invalid metrics: ~a.  Aborting.\n"
-                   (string-intersperse
-                    (map symbol->string
-                         (filter (lambda (m)
-                                   (not (memq m all-metrics)))
-                                 ms))
-                    ", "))
-          (exit 1))
-        ms)
+        (if (memq 'all ms)
+            ;; "all" is a special shortcut for all metrics
+            all-metrics
+            (begin
+              (unless (every (lambda (metric)
+                               (memq metric all-metrics))
+                             ms)
+                (fprintf (current-error-port)
+                         "Invalid metrics: ~a.  Aborting.\n"
+                         (string-intersperse
+                          (map symbol->string
+                               (filter (lambda (m)
+                                         (not (memq m all-metrics)))
+                                       ms))
+                          ", "))
+                (exit 1))
+              ms)))
       '(cpu-time)))
 
 (define (cmd-line-arg option args)
@@ -243,7 +247,7 @@ EOF
                       mutations-tracked major-gcs minor-gcs)))
 
   (when (member "--list-metrics" args)
-    (for-each print all-metrics)
+    (for-each print (cons 'all all-metrics))
     (exit 0))
 
   (when (null? non-option-args)
