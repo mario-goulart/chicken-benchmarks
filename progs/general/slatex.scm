@@ -2368,11 +2368,19 @@
     (lambda (filename) (lambda () (slatex.process-main-tex-file filename)))
     "test"))
 
-(define (setup!)
-  (use setup-api)
-  (change-directory "inputs")
-  (remove-file* "slatexdir")
-  (create-directory "slatexdir"))
+(cond-expand
+  (chicken-5
+    (define (setup!)
+      (import (chicken process-context) (chicken file))
+      (current-directory "inputs")
+      (delete-file* "slatexdir")
+      (create-directory "slatexdir")))
+  (else
+    (define (setup!)
+      (use setup-api)
+      (change-directory "inputs")
+      (remove-file* "slatexdir")
+      (create-directory "slatexdir"))))
 
 (setup!)
 (time (main))

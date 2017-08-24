@@ -26,6 +26,7 @@
 ;;; BOYER -- Logic programming benchmark, originally written by Bob Boyer.
 ;;; Fairly CONS intensive.
 
+(cond-expand (chicken-5 (import (chicken plist))) (else))
 
 (define unify-subst '())		;Qobi
 

@@ -24,9 +24,10 @@ exec csi -s $0 "$@"
    (begin (import (chicken pretty-print) (chicken bitwise) (chicken format)
                   (chicken posix) (chicken data-structures) (chicken time)
                   (chicken pathname) (chicken io) (chicken irregex)
+                  (chicken sort) (chicken file) (chicken string)
                   (only srfi-1 make-list last remove any iota)
                   (only srfi-13 string-trim-both string-pad-right)
-                  (only (chicken pathname) chicken-home))
+                  (only (chicken platform) chicken-home))
 
           (define installation-prefix
             (make-parameter
