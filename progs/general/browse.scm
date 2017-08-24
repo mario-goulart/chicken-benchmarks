@@ -36,6 +36,8 @@
 ;;; The next few definitions should be omitted if the Scheme implementation
 ;;; already provides them.
 
+(cond-expand (chicken-5 (import (chicken plist))) (else))
+
 (define (append! x y)
   (if (null? x)
       y
