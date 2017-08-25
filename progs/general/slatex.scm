@@ -2373,7 +2373,7 @@
     (define (setup!)
       (import (chicken process-context) (chicken file))
       (current-directory "inputs")
-      (delete-file* "slatexdir")
+      (delete-directory "slatexdir" 'recursively)
       (create-directory "slatexdir")))
   (else
     (define (setup!)
