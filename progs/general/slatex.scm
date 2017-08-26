@@ -2371,9 +2371,14 @@
 (cond-expand
   (chicken-5
     (define (setup!)
-      (import (chicken process-context) (chicken file))
+      (import (chicken process-context) (chicken file)
+              (chicken errno) (chicken condition))
       (current-directory "inputs")
-      (delete-directory "slatexdir" 'recursively)
+      (condition-case (delete-directory "slatexdir" 'recursively)
+        ((exn i/o file)
+         ;; Ignore error in case "slatexdir" doesn't exist
+         (unless (= (errno) errno/noent)
+           (error "Could not delete slatexdir. errno" (errno)))))
       (create-directory "slatexdir")))
   (else
     (define (setup!)
