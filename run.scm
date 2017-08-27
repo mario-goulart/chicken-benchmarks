@@ -311,8 +311,7 @@ mGC[7] => number of minor GCs
                                  (append (list prog compile-time)
                                          (map bench-result->alist
                                               results))))
-                             results))))))
-  (global-counts results))
+                             results)))))))
 
 
 (define (display-env num-progs)
@@ -377,7 +376,8 @@ EOF
                     (else (fprintf (current-error-port) "FAIL\n"))))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
-    (write-log! all-results)))
+    (write-log! all-results)
+    (global-counts all-results)))
 
 (define (cmd-line-arg option args)
   ;; Returns the argument associated to the command line option OPTION
