@@ -4,12 +4,8 @@ Some benchmark programs have been taken from CHICKEN version 4.2.0 and
 other programs have been adapted from other benchmark suites or just
 made for this suite.
 
-Note: if you are running this benchmark suite on a system which
-supports CPU frequency scaling, make sure to use a governor that
-produces more stable results (e.g., performance), otherwise you may
-get too much noise in the results (see
-http://paste.call-cc.org/paste?id=9199f833f1ccae2c9a1234980ffe055c5ab4a677
-for an example).
+Note: please see the section "Results' stability" for information on
+how to get stable benchmark results.
 
 Before you can use it with CHICKEN 5, you must run this command first:
 
@@ -168,3 +164,43 @@ benchmark log files.  Examples:
   
   $ ./query.scm cpu-time --programs=maze,psyntax benchmark.log 
   8.456
+
+
+## Results' stability
+
+You might notice that the results my vary on your system, even if you
+use the same programs with the same inputs.  Some environmental
+factors may influence the stability of results:
+
+* Multi-task systems.  The benchmark programs compete with other
+  programs for the use of resources on your system (e.g., CPU, memory,
+  I/O).  It's important that the system where you are running the
+  benchmarks doesn't run programs that might influence the benchmark
+  results.
+
+* Swapping.  If your system uses swap (non-volatile memory as RAM)
+  while benchmarks are running, the results may be greatly distorted.
+
+* CPU frequency governor.  Modern CPUs might change their clock
+  according to various policies.  On Linux systems, some examples are:
+  "ondemand", "powersave", "performance" and "conservative".  The CPU
+  frequency governor can highly influence the benchmark results (see
+  http://paste.call-cc.org/paste?id=9199f833f1ccae2c9a1234980ffe055c5ab4a677
+  for an example).  The recommended CPU frequency governor for
+  benchmarks is "performance".
+
+* CPU frequency throttling due to overheating.  CPUs can automatically
+  reduce their clock if they start to overhead, which usually happens
+  when they get stressed (and that's what this benchmark tool does to
+  the CPU).  So, to get stable results, make sure that your CPU
+  doesn't overheat to the point of getting its frequency throttled
+  during the execution of benchmarks.
+
+This tool will report deviances in the results, which indicate that
+they are not very stable.  The deviances are determined by computing
+the standard deviation of results and normalizing it against the mean
+(see the --max-deviance command line option).  By default, deviances
+greater than 5 will be highlighted in the results' summary.
+
+Ideally, we should have zero deviance, but that might not be
+achievable in practice, due to the nature of modern systems.
