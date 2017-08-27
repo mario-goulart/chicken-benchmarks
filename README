@@ -32,7 +32,9 @@ A simpler runner (run.scm) is available:
     --runtime-options=<options>     runtime options to give programs
     --programs=<prog1>,<prog2>      a comma-separated list of programs to run
     --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
-
+    --max-deviance=<number>         maximum accepted deviance in the results
+                                    (standard deviation normalized against mean).
+                                    Default = 5
 
 The configuration file (optional) is a scheme file which can set the
 following parameters:
@@ -59,6 +61,9 @@ following parameters:
 
 * skip-programs: a list of symbols indicating what programs are not to
     be run (default = '())
+
+* max-deviance: a number specifying the maximum deviance in
+    results (default = 5).
 
 
 If the configuration file is not provided, run.scm will pick the

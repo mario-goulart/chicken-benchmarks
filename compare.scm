@@ -142,17 +142,15 @@ exec csi -s $0 "$@"
   (/ (apply + data) (length data)))
 
 (define (get-log-results-by-metric log metric)
-  ;;1> (define l (with-input-from-file "benchmark.log" read))
-  ;;2> (define r (alist-ref 'results l))
   (let ((results (log-results log)))
     (if (eq? metric 'build-time)
-        (map (lambda (result)
-               (cons (car result)
-                     (cadr result)))
+        (map (lambda (prog-data)
+               (cons (alist-ref 'program prog-data)
+                     (alist-ref 'build-time prog-data)))
              results)
         (map (lambda (prog-data)
-               (let ((prog (car prog-data))
-                     (result-subsets (cddr prog-data)))
+               (let ((prog (alist-ref 'program prog-data))
+                     (result-subsets (alist-ref 'results prog-data)))
                  (cons prog
                        (map (lambda (result-subset)
                               (alist-ref metric result-subset))
@@ -161,7 +159,10 @@ exec csi -s $0 "$@"
 
 
 (define (compare logs metrics)
-  (let ((progs (sort (map car (log-results (car logs))) string<)))
+  (let ((progs (sort (map (lambda (prog-data)
+                            (alist-ref 'program prog-data))
+                          (log-results (car logs)))
+                     string<)))
     (display-header logs)
     (for-each
      (lambda (metric)

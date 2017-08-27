@@ -35,6 +35,9 @@ exec csi -s $0 "$@"
 
           (define (read-full-string p) (read-string #f p)) )))
 
+;; Global list of unstable results
+(define *unstable-results* '())
+
 ;;; Configurable parameters
 (define repetitions (make-parameter 10))
 (define csc-options (make-parameter ""))
@@ -44,6 +47,9 @@ exec csi -s $0 "$@"
 (define programs (make-parameter #f)) ;; list of symbols or #f (all programs)
 (define skip-programs (make-parameter '())) ;; list of symbols
 (define programs-dir (make-parameter (make-pathname "progs" "general")))
+;; Maximum accepted deviance in the results (standard deviation
+;; normalized against mean).
+(define max-deviance (make-parameter 5))
 
 (define (all-progs)
   (map string->symbol
@@ -234,23 +240,37 @@ mGC[7] => number of minor GCs
 (define (failure-bench-result? bench-result)
   (not (bench-result-cpu-time bench-result)))
 
-(define (display-results compile-time results)
+(define (display-results prog compile-time results deviances)
+  ;; `results' is a list of bench-result objects
   (let ((vals
          (if (failure-bench-result? (car results))
              (cons compile-time (make-failure-results))
-             (map maybe-drop-.0
-                  (list compile-time
-                        (average results bench-result-cpu-time)
-                        (average results bench-result-major-gcs-time)
-                        (average results bench-result-mutations)
-                        (average results bench-result-mutations-tracked)
-                        (average results bench-result-major-gcs)
-                        (average results bench-result-minor-gcs))))))
-    (for-each (lambda (val idx)
+             (list (cons compile-time 0)
+                   (cons (average results bench-result-cpu-time)
+                         (alist-ref 'cpu-time deviances))
+                   (cons (average results bench-result-major-gcs-time)
+                         (alist-ref 'major-gcs-time deviances))
+                   (cons (average results bench-result-mutations)
+                         (alist-ref 'mutations deviances))
+                   (cons (average results bench-result-mutations-tracked)
+                         (alist-ref 'mutations-tracked deviances))
+                   (cons (average results bench-result-major-gcs)
+                         (alist-ref 'major-gcs deviances))
+                   (cons (average results bench-result-minor-gcs)
+                         (alist-ref 'minor-gcs deviances))))))
+    (define (format val/deviance)
+      ;; `val/deviance' is a pair (<actual val> . <deviance>)
+      (let ((val (car val/deviance))
+            (deviance (cdr val/deviance)))
+        (if val
+            (let ((val-str (->string (maybe-drop-.0 val))))
+              (if (> deviance (max-deviance))
+                  (string-append "*" val-str)
+                  val-str))
+            "FAIL")))
+    (for-each (lambda (val/deviance idx)
                 (display (string-pad-right
-                          (if val
-                              (->string val)
-                              "FAIL")
+                          (format val/deviance)
                           (cdr (list-ref cols idx))
                           #\space))
                 (display col-padding))
@@ -279,7 +299,7 @@ mGC[7] => number of minor GCs
           (major-gcs         . ,major-gcs)
           (failures          . ,failures))
         (let* ((result (car results))
-               (result-objs (cddr result))
+               (result-objs (cadddr result))
                (failure? (failure-bench-result? (car result-objs)))
                (maybe-sum (lambda (accessor)
                             (if failure?
@@ -295,11 +315,72 @@ mGC[7] => number of minor GCs
                 (+ major-gcs (maybe-sum bench-result-major-gcs))
                 (+ failures (if failure? 1 0)))))))
 
+
+(define (standard-deviation-% vals)
+  ;; Return the standard deviation normalized against the mean
+  (let* ((n-vals (length vals))
+         (mean (/ (apply + vals) n-vals)))
+    (if (zero? mean)
+        0
+        (let* ((distance-from-mean
+                (map (lambda (v)
+                       (expt (- v mean) 2))
+                     vals))
+               (std-dev
+                (sqrt (/ (apply + distance-from-mean) n-vals))))
+          (/ (* std-dev 100) mean)))))
+
+
+(define (compute-program-deviances prog result-objs)
+  ;; Return an alist `(<metric> . <deviance>)
+  (let ((results-alist (map bench-result->alist result-objs))
+        (metrics '(cpu-time
+                   major-gcs-time
+                   mutations
+                   mutations-tracked
+                   major-gcs
+                   minor-gcs)))
+    (map (lambda (metric)
+           (let ((vals
+                  (let loop ((results results-alist))
+                    (if (null? results)
+                        '()
+                        (cons (alist-ref metric (car results))
+                              (loop (cdr results)))))))
+             (if (any not vals)
+                 ;; We have a failure
+                 (cons metric #f)
+                 (let ((std-dev-% (standard-deviation-% vals)))
+                   (when (> std-dev-% (max-deviance))
+                     (set! *unstable-results*
+                       (cons (list prog metric std-dev-%)
+                             *unstable-results*)))
+                   (cons metric std-dev-%)))))
+         metrics)))
+
+
+(define (maybe-display-deviances)
+  (unless (null? *unstable-results*)
+    (printf "\nWARNING: some numbers are not stable (deviance greater than ~a):\n"
+            (max-deviance))
+    (for-each (lambda (deviance-data)
+                (let ((prog (car deviance-data))
+                      (metric (cadr deviance-data))
+                      (deviance (caddr deviance-data)))
+                  (print
+                   (string-append
+                    (string-pad-right prog 20 #\space)
+                    (string-pad-right (symbol->string metric) 20 #\space)
+                    (string-pad-right (number->string deviance) 20 #\space)))))
+              *unstable-results*)))
+
+
 (define (write-log! results)
-  ;; `results' is a list of ("prog" <build-time> <bench-result1> ...)
+  ;; `results' is a list of (<prog> <build-time> <deviances> (<bench-result1> ...))
+  ;; <deviances> is an alist (<metric> . <deviance>)
   (with-output-to-file (log-file)
     (lambda ()
-      (pp `((log-format-version . 1)
+      (pp `((log-format-version . 2)
             (repetitions . ,(repetitions))
             (installation-prefix . ,(installation-prefix))
             (csc-options . ,(csc-options))
@@ -307,10 +388,13 @@ mGC[7] => number of minor GCs
             (results . ,(map (lambda (result)
                                (let ((prog (car result))
                                      (compile-time (cadr result))
-                                     (results (cddr result)))
-                                 (append (list prog compile-time)
-                                         (map bench-result->alist
-                                              results))))
+                                     (deviances (caddr result))
+                                     (results (cadddr result)))
+                                 `((program . ,prog)
+                                   (build-time . ,compile-time)
+                                   (deviances . ,deviances)
+                                   (results . ,(map bench-result->alist
+                                                    results)))))
                              results)))))))
 
 
@@ -320,6 +404,9 @@ Repeating each program #(repetitions) times
 Using #(csc) #(csc-options)
 #(if (equal? (runtime-options) "") "" (conc "Runtime options: " (runtime-options) "\n"))
 Total number of programs to benchmark: #num-progs
+
+Maximum deviance: #(max-deviance).  Results whose deviance are greater than
+the maximum are annotated with a `*' in the summary below.
 
 The values displayed correspond to the arithmetic mean of
 all results (except build time).
@@ -355,9 +442,9 @@ EOF
          (num-progs (length (programs)))
          (all-results '())
          (add-results!
-          (lambda (prog compile-time results)
+          (lambda (prog compile-time results deviances)
             (set! all-results
-              (cons (cons prog (cons compile-time results))
+              (cons (list prog compile-time deviances results)
                     all-results)))))
     (change-directory (programs-dir))
     (display-env num-progs)
@@ -371,13 +458,15 @@ EOF
           (let-values (((status output compile-time) (compile prog)))
             (let ((results (and (zero? status) (run bin))))
               (cond (results
-                     (add-results! bin compile-time results)
-                     (display-results compile-time results))
+                     (let ((deviances (compute-program-deviances bin results)))
+                       (add-results! bin compile-time results deviances)
+                       (display-results prog compile-time results deviances)))
                     (else (fprintf (current-error-port) "FAIL\n"))))))
         (loop (cdr progs) (+ 1 progno))))
     (change-directory here)
     (write-log! all-results)
-    (global-counts all-results)))
+    all-results))
+
 
 (define (cmd-line-arg option args)
   ;; Returns the argument associated to the command line option OPTION
@@ -407,6 +496,9 @@ Usage: #program [ <options> ] [ config file ]
   --runtime-options=<options>     runtime options
   --programs=<prog1>,<prog2>      a comma-separated list of programs to run
   --skip-programs=<prog1>,<prog2> a comma-separated list of programs to skip
+  --max-deviance=<number>         maximum accepted deviance in the results
+                                  (standard deviation normalized against mean).
+                                  Default = 5
 
 EOF
     port)
@@ -439,6 +531,9 @@ EOF
   (repetitions (or (and-let* ((r (cmd-line-arg '--repetitions args)))
                      (string->number r))
                    (repetitions)))
+  (max-deviance (or (and-let* ((d (cmd-line-arg '--max-deviance args)))
+                      (string->number d))
+                    (max-deviance)))
 
   ;; Don't clobber log files
   (when (file-exists? (log-file))
@@ -485,7 +580,9 @@ EOF
   (when (installation-prefix)
     (set-environment-variable! "LD_LIBRARY_PATH" (make-pathname (installation-prefix) "lib")))
 
-  (let ((counts (run-all)))
+  (let* ((results (run-all))
+         (counts (global-counts results)))
+    (maybe-display-deviances)
     (print #<#EOF
 
 Total compile time:             #(prettify-time (alist-ref 'compile-time counts))

@@ -21,7 +21,9 @@ exec csi -s $0 "$@"
 
 (define (query-programs log-file)
   (let* ((results (alist-ref 'results (read-log log-file))))
-    (map car results)))
+    (map (lambda (prog-data)
+           (alist-ref 'program prog-data))
+         results)))
 
 (define (query-repetitions log-file)
   (alist-ref 'repetitions (read-log log-file)))
@@ -33,10 +35,10 @@ exec csi -s $0 "$@"
       (if (null? progs-data)
           times
           (let* ((prog-data (car progs-data))
-                 (data-blocks (cddr prog-data)))
+                 (data-blocks (alist-ref 'results prog-data)))
             (loop
              (if (or (not programs)
-                     (member (car prog-data) programs))
+                     (member (alist-ref 'program prog-data) programs))
                  (append
                   (map (lambda (block)
                          (alist-ref field block))
@@ -56,20 +58,32 @@ exec csi -s $0 "$@"
 (define (query-runtime-options log-file)
   (alist-ref 'runtime-options (read-log log-file)))
 
+(define (find-program-data program results)
+  (let loop ((results results))
+    (if (null? results)
+        #f
+        (let ((program-data (car results)))
+          (if (equal? program (alist-ref 'program program-data))
+              program-data
+              (loop (cdr results)))))))
+
 (define (query-build-time log-file programs)
   ;; If program is #f, query all programs
   (let ((results (alist-ref 'results (read-log log-file))))
-    (let loop ((programs (or programs (map car results))))
+    (let loop ((programs (or programs (map (lambda (prog-data)
+                                             (alist-ref 'program prog-data))
+                                           results))))
       (if (null? programs)
           0
           (let* ((program (car programs))
-                 (program-data (alist-ref program results equal?)))
+                 (program-data (find-program-data program results)))
             (unless program-data
               (fprintf (current-error-port)
                        "Error: could not find benchmark data for program ~a.\n"
                        program)
               (exit 1))
-            (+ (car program-data) (loop (cdr programs))))))))
+            (+ (alist-ref 'build-time program-data)
+               (loop (cdr programs))))))))
 
 (define (cmd-line-arg option args)
   ;; Returns the argument associated to the command line option OPTION
