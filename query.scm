@@ -11,7 +11,9 @@ exec csi -s $0 "$@"
    (use data-structures extras irregex files ports posix srfi-1 srfi-13))
   (chicken-5
    (import (chicken pathname) (chicken data-structures) (chicken irregex)
-           (chicken ports) (chicken format) srfi-1 srfi-13)))
+           (chicken port) (chicken format)
+           (chicken string)
+           srfi-1 srfi-13)))
 
 (define (read-log log-file)
   (with-input-from-file log-file read))

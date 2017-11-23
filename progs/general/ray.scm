@@ -1,6 +1,9 @@
 ;;; RAY -- Ray-trace a simple scene with spheres, generating a ".pgm" file.
 ;;; Translated to Scheme from Paul Graham's book ANSI Common Lisp, Example 9.8
 
+(cond-expand (chicken-5 (import (chicken file)))
+      (else))
+
 ;; R5RS compatibility --mario
 (define (inexact n) (* n 1.0))
 

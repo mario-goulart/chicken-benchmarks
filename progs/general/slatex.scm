@@ -1,4 +1,5 @@
-(use posix)
+(cond-expand (chicken-4 (use posix))
+      (else (import (chicken file))))
 
 (define slatex-iters       20)
 

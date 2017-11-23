@@ -9,7 +9,7 @@
 ;;; in the reverse of the order in which they were read.
 (cond-expand
   (chicken-4 (use extras))
-  (chicken-5 (import (chicken io))))
+  (chicken-5 (import (chicken io) (chicken file))))
 
 (define (tail-r-aux port file-so-far)
   (let ((x (read-line port)))
