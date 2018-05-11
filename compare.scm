@@ -5,14 +5,23 @@ exec csi -s $0 "$@"
 
 (module compare ()
 
-(import chicken scheme)
+(import scheme)
 (cond-expand
   (chicken-4
-   (use data-structures extras files irregex posix srfi-13 srfi-1))
+   (begin
+     (import chicken)
+     (use data-structures extras files irregex posix srfi-13 srfi-1)))
   (chicken-5
-   (import (chicken irregex) (chicken pathname) (chicken format)
-           (only (chicken posix) terminal-port?)
-           (chicken data-structures) srfi-1 srfi-13)))
+   (import (chicken base)
+           (chicken irregex)
+           (chicken format)
+           (chicken pathname)
+           (chicken process-context)
+           (chicken sort)
+           (chicken string)
+           (only (chicken port) terminal-port?)
+           srfi-1
+           srfi-13)))
 
 (define progs/pad 20)
 (define results/pad 10)

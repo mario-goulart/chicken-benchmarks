@@ -5,13 +5,19 @@ exec csi -s $0 "$@"
 
 (module query-benchmark-log ()
 
-(import chicken scheme)
+(import scheme)
 (cond-expand
   (chicken-4
-   (use data-structures extras irregex files ports posix srfi-1 srfi-13))
+   (being
+    (import chicken)
+    (use data-structures extras irregex files ports posix srfi-1 srfi-13)))
   (chicken-5
-   (import (chicken pathname) (chicken data-structures) (chicken irregex)
-           (chicken port) (chicken format)
+   (import (chicken base)
+           (chicken format)
+           (chicken irregex)
+           (chicken pathname)
+           (chicken port)
+           (chicken process-context)
            (chicken string)
            srfi-1 srfi-13)))
 

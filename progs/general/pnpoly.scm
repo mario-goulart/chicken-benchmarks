@@ -1,5 +1,10 @@
 ;;; PNPOLY - Test if a point is contained in a 2D polygon.
 
+(cond-expand
+  (chicken-5
+   (import (chicken fixnum)))
+  (else))
+
 (define (pt-in-poly2 xp yp x y)
   (let loop ((c #f) (i (- (vector-length xp) 1)) (j 0))
     (if (< i 0)

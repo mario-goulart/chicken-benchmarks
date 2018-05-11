@@ -1,5 +1,10 @@
 ;;; PRIMES -- Compute primes less than 100, written by Eric Mohr.
 
+(cond-expand
+  (chicken-5
+   (import (chicken fixnum)))
+  (else))
+
 (define  (interval-list m n)
   (if (> m n)
     '()

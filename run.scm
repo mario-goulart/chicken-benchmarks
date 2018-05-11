@@ -7,11 +7,12 @@ exec csi -s $0 "$@"
 ;; use of a config file.  To run this file through the scrutinizer,
 ;; use "csc -ASM run.scm".
 
-(import chicken scheme)
+(import scheme)
 
 (cond-expand
   (chicken-4
    (begin
+     (import chicken)
      (use data-structures extras files posix utils srfi-1 srfi-13 irregex
           (only setup-api program-path))
 
@@ -22,9 +23,9 @@ exec csi -s $0 "$@"
 
   (chicken-5
    (begin (import (chicken pretty-print) (chicken bitwise) (chicken format)
-                  (chicken posix) (chicken data-structures) (chicken time)
-                  (chicken pathname) (chicken io) (chicken irregex)
-                  (chicken sort) (chicken file) (chicken string)
+                  (chicken time) (chicken pathname) (chicken io)
+                  (chicken irregex) (chicken sort) (chicken file)
+                  (chicken string)
                   (only srfi-1 make-list last remove any iota)
                   (only srfi-13 string-trim-both string-pad-right)
                   (only (chicken platform) chicken-home))

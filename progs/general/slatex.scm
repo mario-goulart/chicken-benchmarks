@@ -2374,7 +2374,7 @@
     (define (setup!)
       (import (chicken process-context) (chicken file)
               (chicken errno) (chicken condition))
-      (current-directory "inputs")
+      (set! (current-directory) "inputs")
       (condition-case (delete-directory "slatexdir" 'recursively)
         ((exn i/o file)
          ;; Ignore error in case "slatexdir" doesn't exist
