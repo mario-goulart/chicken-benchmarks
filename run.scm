@@ -28,7 +28,14 @@ exec csi -s $0 "$@"
                   (chicken string)
                   (only srfi-1 make-list last remove any iota)
                   (only srfi-13 string-trim-both string-pad-right)
-                  (only (chicken platform) chicken-home))
+                  (only (chicken platform) chicken-home)
+                  (only (chicken process) open-input-pipe close-input-pipe)
+                  (only (chicken process-context)
+                        change-directory
+                        command-line-arguments
+                        current-directory
+                        program-name
+                        set-environment-variable!))
 
           (define installation-prefix
             (make-parameter
