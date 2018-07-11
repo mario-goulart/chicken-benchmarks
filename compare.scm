@@ -41,6 +41,7 @@ exec csi -s $0 "$@"
                      (or (log-installation-prefix log)
                          "from $PATH"))
         (show-option 'csc-options (log-csc-options log))
+        (show-option 'runtime-options (log-runtime-options log))
         (show-option 'repetitions (log-repetitions log))
         (newline))
       (loop (cdr logs) (+ id 1))))
@@ -136,7 +137,7 @@ exec csi -s $0 "$@"
     (newline)))
 
 
-(define-record log version repetitions installation-prefix csc-options results)
+(define-record log version repetitions installation-prefix csc-options runtime-options results)
 
 
 (define (read-log log-file)
@@ -145,6 +146,7 @@ exec csi -s $0 "$@"
               (alist-ref 'repetitions log-data)
               (alist-ref 'installation-prefix log-data)
               (alist-ref 'csc-options log-data)
+              (alist-ref 'runtime-options log-data)
               (alist-ref 'results log-data))))
 
 (define (average data)
