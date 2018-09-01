@@ -8,35 +8,46 @@ exec csi -s $0 "$@"
 ;; use "csc -ASM run.scm".
 
 (import scheme)
-
 (cond-expand
   (chicken-4
-   (begin
-     (import chicken)
-     (use data-structures extras files posix utils srfi-1 srfi-13 irregex
-          (only setup-api program-path))
+   (import chicken)
+   (use data-structures extras files posix utils srfi-1 srfi-13 irregex
+        (only setup-api program-path))
 
-     (define installation-prefix
-       (make-parameter (pathname-directory (program-path))))
-     (define (read-full-string p) (read-all p))
-     (define set-environment-variable! setenv)))
+   (define installation-prefix
+     (make-parameter (pathname-directory (program-path))))
+
+   (define (read-full-string p)
+     (read-all p))
+
+   (define set-environment-variable! setenv))
 
   (chicken-5
-   (begin (import (chicken pretty-print) (chicken bitwise) (chicken format)
-                  (chicken time) (chicken pathname) (chicken io)
-                  (chicken irregex) (chicken sort) (chicken file)
-                  (chicken string)
-                  (chicken process)
-                  (chicken process-context)
-                  (only srfi-1 make-list last remove any iota)
-                  (only srfi-13 string-trim-both string-pad-right)
-                  (only (chicken platform) chicken-home))
+   (import (chicken bitwise)
+           (chicken file)
+           (chicken format)
+           (chicken io)
+           (chicken irregex)
+           (chicken pathname)
+           (chicken pretty-print)
+           (chicken process)
+           (chicken process-context)
+           (chicken time)
+           (chicken sort)
+           (chicken string)
+           (only srfi-1 make-list last remove any iota)
+           (only srfi-13 string-trim-both string-pad-right)
+           (only (chicken platform) chicken-home))
 
-          (define installation-prefix
-            (make-parameter
-             (pathname-directory (pathname-directory (chicken-home)))))
+   (define installation-prefix
+     (make-parameter
+      (pathname-directory (pathname-directory (chicken-home)))))
 
-          (define (read-full-string p) (read-string #f p)) )))
+   (define (read-full-string p)
+     (read-string #f p)))
+
+  (else
+   (error "Unsupported CHICKEN version.")))
 
 ;; Global list of unstable results
 (define *unstable-results* '())

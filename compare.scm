@@ -8,9 +8,8 @@ exec csi -s $0 "$@"
 (import scheme)
 (cond-expand
   (chicken-4
-   (begin
-     (import chicken)
-     (use data-structures extras files irregex posix srfi-13 srfi-1)))
+   (import chicken)
+   (use data-structures extras files irregex posix srfi-13 srfi-1))
   (chicken-5
    (import (chicken base)
            (chicken irregex)
@@ -21,7 +20,9 @@ exec csi -s $0 "$@"
            (chicken string)
            (only (chicken port) terminal-port?)
            srfi-1
-           srfi-13)))
+           srfi-13))
+  (else
+   (error "Unsupported CHICKEN version.")))
 
 (define progs/pad 20)
 (define results/pad 10)
