@@ -26,6 +26,8 @@ exec csi -s $0 "$@"
                   (chicken time) (chicken pathname) (chicken io)
                   (chicken irregex) (chicken sort) (chicken file)
                   (chicken string)
+                  (chicken process)
+                  (chicken process-context)
                   (only srfi-1 make-list last remove any iota)
                   (only srfi-13 string-trim-both string-pad-right)
                   (only (chicken platform) chicken-home))
