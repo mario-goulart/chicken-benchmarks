@@ -9,20 +9,27 @@ exec csi -s $0 "$@"
 (cond-expand
   (chicken-4
    (import chicken)
-   (use data-structures extras files irregex posix srfi-13 srfi-1))
+   (use data-structures extras files posix)
+
+   (begin-for-syntax (require-library files))
+   (define-syntax include-relative
+     (ir-macro-transformer
+      (lambda (exp inject comp)
+        (let ((path (cadr exp)))
+          `(include
+            ,(make-pathname (pathname-directory ##sys#current-load-path)
+                            path))))))
+   )
   (chicken-5
    (import (chicken base)
-           (chicken irregex)
-           (chicken format)
            (chicken pathname)
            (chicken process-context)
            (chicken sort)
-           (chicken string)
-           (only (chicken port) terminal-port?)
-           srfi-1
-           srfi-13))
+           (only (chicken port) terminal-port?)))
   (else
    (error "Unsupported CHICKEN version.")))
+
+(include-relative "./lib/utils.scm")
 
 (define progs/pad 20)
 (define results/pad 10)
@@ -224,17 +231,6 @@ exec csi -s $0 "$@"
               ms)))
       '(cpu-time)))
 
-(define (cmd-line-arg option args)
-  ;; Returns the argument associated to the command line option OPTION
-  ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
-  ;; argument.
-  (let ((val (any (lambda (arg)
-                    (irregex-match
-                     `(seq ,(->string option) "=" (submatch (* any)))
-                     arg))
-                  args)))
-    (and val (irregex-match-substring val 1))))
-
 (define (usage #!optional exit-code)
   (let ((program (pathname-strip-directory (program-name)))
         (port (if (and exit-code (not (zero? exit-code)))
@@ -251,27 +247,25 @@ EOF
     port)
     (when exit-code (exit exit-code))))
 
-(let* ((args (command-line-arguments))
-       (non-option-args
-        (remove (lambda (arg)
-                  (string-prefix? "--" arg))
-                args))
+(let* ((parsed-args (parse-cmd-line (command-line-arguments)
+                                    '(--list-metrics
+                                      (--metrics))))
+       (args (cdr parsed-args))
+       (log-files (car parsed-args))
        (all-metrics '(build-time cpu-time major-gcs-time mutations
                       mutations-tracked major-gcs minor-gcs)))
 
-  (when (member "--list-metrics" args)
+  (when (cmd-line-arg '--list-metrics args)
     (for-each print (cons 'all all-metrics))
     (exit 0))
 
-  (when (null? non-option-args)
-    (usage 1))
-
-  (when (or (member "-h" args)
-            (member "-help" args)
-            (member "--help" args))
+  (when (help-requested? args)
     (usage 0))
 
+  (when (null? log-files)
+    (usage 1))
+
   (let ((metrics (parse-metrics-from-command-line args all-metrics)))
-    (compare (map read-log non-option-args) metrics)))
+    (compare (map read-log log-files) metrics)))
 
 ) ;; end module
