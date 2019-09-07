@@ -9,20 +9,25 @@ exec csi -s $0 "$@"
 (cond-expand
   (chicken-4
    (import chicken)
-   (use data-structures extras irregex files ports posix srfi-1 srfi-13))
+   (use data-structures files)
+
+   (begin-for-syntax (require-library files))
+   (define-syntax include-relative
+     (ir-macro-transformer
+      (lambda (exp inject comp)
+        (let ((path (cadr exp)))
+          `(include
+            ,(make-pathname (pathname-directory ##sys#current-load-path)
+                            path))))))
+   )
   (chicken-5
    (import (chicken base)
-           (chicken format)
-           (chicken irregex)
            (chicken pathname)
-           (chicken port)
-           (chicken process-context)
-           (chicken string)
-           srfi-1
-           srfi-13))
+           (chicken process-context)))
   (else
    (error "Unsupported CHICKEN version.")))
 
+(include-relative "./lib/utils.scm")
 
 (define (read-log log-file)
   (with-input-from-file log-file read))
@@ -61,9 +66,7 @@ exec csi -s $0 "$@"
 (define (sum-up-field-values field log-file programs)
   (let ((results (query-bench-data field log-file programs)))
     (if (any not results)
-        (begin
-          (fprintf (current-error-port) "FAIL\n")
-          (exit 1))
+        (die! "FAIL")
         (apply + results))))
 
 (define (query-runtime-options log-file)
@@ -89,23 +92,10 @@ exec csi -s $0 "$@"
           (let* ((program (car programs))
                  (program-data (find-program-data program results)))
             (unless program-data
-              (fprintf (current-error-port)
-                       "Error: could not find benchmark data for program ~a.\n"
-                       program)
-              (exit 1))
+              (die! "Error: could not find benchmark data for program ~a."
+                    program))
             (+ (alist-ref 'build-time program-data)
                (loop (cdr programs))))))))
-
-(define (cmd-line-arg option args)
-  ;; Returns the argument associated to the command line option OPTION
-  ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
-  ;; argument.
-  (let ((val (any (lambda (arg)
-                    (irregex-match
-                     `(seq ,(->string option) "=" (submatch (* any)))
-                     arg))
-                  args)))
-    (and val (irregex-match-substring val 1))))
 
 (define (usage #!optional exit-code)
   (let ((program (pathname-strip-directory (program-name)))
@@ -133,51 +123,42 @@ EOF
     (when exit-code (exit exit-code))))
 
 
-(let ((args (command-line-arguments)))
+(let* ((parsed-args (parse-cmd-line (command-line-arguments)
+                                    '((--programs))))
+       (args (cdr parsed-args))
+       (nonamed-args (car parsed-args)))
 
-  ;; Check help options
-  (when (or (member "-h" args)
-            (member "-help" args)
-            (member "--help" args))
+  (when (help-requested? args)
     (usage 0))
 
-  (let ((args-without-options
-         (remove (lambda (arg)
-                   (string-prefix? "--" arg))
-                 args))
-        (options (filter (lambda (arg)
-                           (string-prefix? "--" arg))
-                         args)))
-    (when (or (null? args-without-options)
-              (null? (cdr args-without-options)))
-      (usage 1))
-    (let* ((command (string->symbol (car args-without-options)))
-           (log-file (cadr args-without-options))
-           (output
-            (case command
-              ((csc-options)
-               (query-csc-options log-file))
-              ((programs)
-               (query-programs log-file))
-              ((repetitions)
-               (query-repetitions log-file))
-              ((build-time cpu-time major-gcs-time mutations mutations-tracked
-                major-gcs minor-gcs)
-               (let* ((programs-str (cmd-line-arg '--programs options))
-                      (programs (and programs-str
-                                     (string-split programs-str ","))))
-                 (if (eq? command 'build-time)
-                     (query-build-time log-file programs)
-                     (sum-up-field-values command log-file programs))))
-              ((runtime-options)
-               (query-runtime-options log-file))
-              (else
-               (with-output-to-port (current-error-port)
-                 (lambda ()
-                   (printf "~a: invalid command.\n" command)
-                   (exit 1)))))))
-      (if (list? output)
-          (for-each print output)
-          (print output)))))
+  (when (or (null? nonamed-args)
+            (null? (cdr nonamed-args)))
+    (usage 1))
+
+  (let* ((command (string->symbol (car nonamed-args)))
+         (log-file (cadr nonamed-args))
+         (output
+          (case command
+            ((csc-options)
+             (query-csc-options log-file))
+            ((programs)
+             (query-programs log-file))
+            ((repetitions)
+             (query-repetitions log-file))
+            ((build-time cpu-time major-gcs-time mutations mutations-tracked
+                         major-gcs minor-gcs)
+             (let* ((programs-str (cmd-line-arg '--programs args))
+                    (programs (and programs-str
+                                   (string-split programs-str ","))))
+               (if (eq? command 'build-time)
+                   (query-build-time log-file programs)
+                   (sum-up-field-values command log-file programs))))
+            ((runtime-options)
+             (query-runtime-options log-file))
+            (else
+             (die! "~a: invalid command." command)))))
+    (if (list? output)
+        (for-each print output)
+        (print output))))
 
 ) ; end module

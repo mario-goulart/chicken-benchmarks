@@ -5,13 +5,15 @@ exec csi -s $0 "$@"
 
 ;; This file is intentionally not wrapped into a module to ease the
 ;; use of a config file.  To run this file through the scrutinizer,
-;; use "csc -ASM run.scm".
+;; use:
+;; CHICKEN 4: csc -ASM run.scm
+;; CHICKEN 5: csc -A -m _ run.scm
 
 (import scheme)
 (cond-expand
   (chicken-4
    (import chicken)
-   (use data-structures extras files posix utils srfi-1 srfi-13 irregex
+   (use data-structures extras files irregex posix srfi-1 srfi-13 utils
         (only setup-api program-path))
 
    (define installation-prefix
@@ -20,14 +22,22 @@ exec csi -s $0 "$@"
    (define (read-full-string p)
      (read-all p))
 
-   (define set-environment-variable! setenv))
+   (define set-environment-variable! setenv)
 
+   (begin-for-syntax (require-library files))
+   (define-syntax include-relative
+     (ir-macro-transformer
+      (lambda (exp inject comp)
+        (let ((path (cadr exp)))
+          `(include
+            ,(make-pathname (pathname-directory ##sys#current-load-path)
+                            path))))))
+   )
   (chicken-5
    (import (chicken bitwise)
            (chicken file)
            (chicken format)
            (chicken io)
-           (chicken irregex)
            (chicken pathname)
            (chicken pretty-print)
            (chicken process)
@@ -35,6 +45,7 @@ exec csi -s $0 "$@"
            (chicken time)
            (chicken sort)
            (chicken string)
+           (chicken time posix)
            (only srfi-1 make-list last remove any iota)
            (only srfi-13 string-trim-both string-pad-right)
            (only (chicken platform) chicken-home))
@@ -48,6 +59,8 @@ exec csi -s $0 "$@"
 
   (else
    (error "Unsupported CHICKEN version.")))
+
+(include-relative "./lib/utils.scm")
 
 ;; Global list of unstable results
 (define *unstable-results* '())
@@ -482,17 +495,6 @@ EOF
     all-results))
 
 
-(define (cmd-line-arg option args)
-  ;; Returns the argument associated to the command line option OPTION
-  ;; in ARGS or #f if OPTION is not found in ARGS or doesn't have any
-  ;; argument.
-  (let ((val (any (lambda (arg)
-                    (irregex-match
-                     `(seq ,(->string option) "=" (submatch (* any)))
-                     arg))
-                  args)))
-    (and val (irregex-match-substring val 1))))
-
 (define (usage #!optional exit-code)
   (let ((program (pathname-strip-directory (program-name)))
         (port (if (and exit-code (not (zero? exit-code)))
@@ -518,19 +520,26 @@ EOF
     port)
     (when exit-code (exit exit-code))))
 
-(let ((args (command-line-arguments)))
-  (when (or (member "-h" args)
-            (member "-help" args)
-            (member "--help" args))
+
+(let* ((parsed-args (parse-cmd-line (command-line-arguments)
+                                    '((--programs-dir)
+                                      (--log-file)
+                                      (--debug-file)
+                                      (--repetitions)
+                                      (--csc-options)
+                                      (--runtime-options)
+                                      (--programs)
+                                      (--skip-programs)
+                                      (--max-deviance))))
+       (args (cdr parsed-args))
+       (config-file (and (not (null? (car parsed-args)))
+                         (caar parsed-args))))
+
+  (when (help-requested? args)
     (usage 0))
 
-  (let ((args-without-options
-         (remove (lambda (arg)
-                   (substring=? "--" arg))
-                 args)))
-    (unless (null? args-without-options)
-      ;; load config file
-      (load (car args-without-options))))
+  (when config-file
+    (load config-file))
 
   ;; Set parameters according to options passed via command line (they
   ;; clobber config file options)
@@ -551,10 +560,7 @@ EOF
 
   ;; Don't clobber log files
   (when (file-exists? (log-file))
-    (fprintf (current-error-port)
-             "'~a' already exists.  Won't clobber it.  Aborting.\n"
-             (log-file))
-    (exit 1))
+    (die! "'~a' already exists.  Won't clobber it.  Aborting." (log-file)))
 
   ;; Determine programs to be run
   (programs (cond ((cmd-line-arg '--programs args)
