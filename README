@@ -190,7 +190,7 @@ factors may influence the stability of results:
   benchmarks is "performance".
 
 * CPU frequency throttling due to overheating.  CPUs can automatically
-  reduce their clock if they start to overhead, which usually happens
+  reduce their clock if they start to overheat, which usually happens
   when they get stressed (and that's what this benchmark tool does to
   the CPU).  So, to get stable results, make sure that your CPU
   doesn't overheat to the point of getting its frequency throttled
