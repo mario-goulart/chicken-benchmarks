@@ -38,6 +38,7 @@ exec csi -s $0 "$@"
            (chicken file)
            (chicken format)
            (chicken io)
+           (chicken irregex)
            (chicken pathname)
            (chicken pretty-print)
            (chicken process)
