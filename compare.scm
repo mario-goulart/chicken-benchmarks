@@ -5,7 +5,7 @@ exec csi -s $0 "$@"
 
 (module compare ()
 
-(import scheme)
+(import (except scheme log))
 (cond-expand
   (chicken-4
    (import chicken)

@@ -1,4 +1,4 @@
-(import scheme)
+(import (except scheme log))
 (cond-expand
  (chicken-4
   (use data-structures extras srfi-1 srfi-13))
