@@ -30,30 +30,44 @@ exec csi -s $0 "$@"
    (error "Unsupported CHICKEN version.")))
 
 (include-relative "./lib/utils.scm")
+(include-relative "./lib/html.scm")
 
 (define progs/pad 20)
 (define results/pad 10)
 
+(define metrics/units
+  '((build-time           . "s")
+    (cpu-time             . "s")
+    (major-gcs-time       . "s")
+    (major-gcs            . "")
+    (minor-gcs            . "")
+    (mutations            . "")
+    (mutations-tracked    . "")
+    (major-gcs minor-gcs  . "")))
+
+(define (get-log-bench-options logs)
+  (map (lambda (log)
+         `((installation-prefix
+            . ,(or (log-installation-prefix log)
+                   "from $PATH"))
+           (csc-options . ,(log-csc-options log))
+           (runtime-options . ,(log-runtime-options log))
+           (repetitions . ,(log-repetitions log))))
+       logs))
 
 (define (display-header logs)
-
-  (define (show-option option value)
-    (print "|-> " option ": " value))
-
-  (let loop ((logs logs)
-             (id 1))
-    (unless (null? logs)
-      (let ((log (car logs)))
-        (print "+---[" id "]:")
-        (show-option 'installation-prefix
-                     (or (log-installation-prefix log)
-                         "from $PATH"))
-        (show-option 'csc-options (log-csc-options log))
-        (show-option 'runtime-options (log-runtime-options log))
-        (show-option 'repetitions (log-repetitions log))
-        (newline))
-      (loop (cdr logs) (+ id 1))))
-  (print "Displaying normalized results (larger numbers indicate better results)\n"))
+  (let ((bench-options (get-log-bench-options logs)))
+    (let loop ((logs logs)
+               (id 1))
+      (unless (null? logs)
+        (let ((log (car logs)))
+          (print "+---[" id "]:")
+          (for-each (lambda (opt)
+                      (print "|-> " (car opt) ": " (cdr opt)))
+                    (list-ref bench-options (sub1 id)))
+          (newline))
+        (loop (cdr logs) (+ id 1))))
+    (print "Displaying normalized results (larger numbers indicate better results)\n")))
 
 (define (display-columns-header logs)
   (let ((num-logs (length logs)))
@@ -76,17 +90,36 @@ exec csi -s $0 "$@"
                  "linux" "screen" "screen-256color" "vt100"
                  "rxvt-unicode-256color"))))
 
-(define (green text)
+(define (green n)
   (if ansi-term?
-      (conc "\x1b[32m" text "\x1b[0m")
-      text))
+      (conc "\x1b[32m" n "\x1b[0m")
+      (number->string n)))
 
-
-(define (red text)
+(define (red n)
   (if ansi-term?
-      (conc "\x1b[31m" text "\x1b[0m")
-      text))
+      (conc "\x1b[31m" n "\x1b[0m")
+      (number->string n)))
 
+(define (highlight-best val html?)
+  (if html?
+      `(span (@ (class "best")) ,val)
+      (green val)))
+
+(define (highlight-worst val html?)
+  (if html?
+      `(span (@ (class "worst")) ,val)
+      (red val)))
+
+(define (highlight-value val html?)
+  ;; val is a pair (<number|#f> . <best|worst|#f>).
+  (let ((n (car val))
+        (how-good (cdr val)))
+    (if n
+        (case how-good
+          ((best) (highlight-best n html?))
+          ((worst) (highlight-worst n html?))
+          (else (number->string n)))
+        "FAIL")))
 
 (define (find-worst times)
   (let ((times (filter identity times)))
@@ -94,32 +127,28 @@ exec csi -s $0 "$@"
         'FAIL
         (apply max times))))
 
-
 (define (find-best times)
   (let ((times (filter identity times)))
     (if (null? times)
         'FAIL
         (apply min times))))
 
-
-(define (fmt num)
-  ;; formats num with two digits at the right of .
-  (let* ((str-num (number->string num))
-         (tokens (string-split str-num "."))
-         (l (car tokens))
-         (r (if (null? (cdr tokens))
-                "00"
-                (cadr tokens))))
-    (string-append l "." (if (< (string-length r) 2)
-                             (string-append r "0")
-                             (string-take r 2)))))
-
-
 (define (normalize worst time)
   (if (or (zero? worst)
           (zero? time))
-      1
-      (/ worst time)))
+      1.0
+      (/ worst time 1.0)))
+
+(define (normalize-result time best worst)
+  (cond ((not time)
+         (cons #f #f))
+        ((= time best worst)
+         (cons 1.0 #f))
+        ((= time best)
+         (cons (truncate* (normalize worst time)) 'best))
+        ((= time worst)
+         (cons 1.0 'worst))
+        (else (cons (truncate* (normalize worst time)) #f))))
 
 (define (display-results prog times)
   (display (string-pad-right prog 20 #\_))
@@ -127,20 +156,14 @@ exec csi -s $0 "$@"
         (worst (find-worst times)))
     (for-each
      (lambda (time)
-       (display (string-pad
-                 (cond ((not time)
-                        "FAIL")
-                       ((= time best)
-                        (green (fmt (normalize worst time))))
-                       ((= time worst)
-                        (red "1.00"))
-                       (else (fmt (normalize worst time))))
-                 (if (and ansi-term?
-                          time
-                          (or (= time best) (= time worst)))
-                     (+ results/pad 9) ;; + ansi format chars
-                     results/pad)
-                 #\_)))
+       (let* ((norm-res (normalize-result time best worst))
+              (highlighted? (memq (cdr norm-res) '(best worst))))
+         (display (string-pad
+                   (highlight-value norm-res #f)
+                   (if (and ansi-term? highlighted?)
+                       (+ results/pad 9) ;; + ansi format chars
+                       results/pad)
+                 #\_))))
      times)
     (newline)))
 
@@ -176,8 +199,39 @@ exec csi -s $0 "$@"
                             result-subsets))))
              results))))
 
+(define (get-overall-results-by-metric log metric)
+  (if (eq? metric 'build-time)
+      (map (lambda (prog-res)
+             (alist-ref 'build-time prog-res))
+           (log-results log))
+      (let loop ((all-results (log-results log)))
+        (if (null? all-results)
+            '()
+            (let ((prog-results (alist-ref 'results (car all-results))))
+              (append (map (lambda (res)
+                             (alist-ref metric res))
+                           prog-results)
+                      (loop (cdr all-results))))))))
 
-(define (compare logs metrics)
+(define (get-overall-total-by-metric log metric)
+  (let ((results (filter identity (get-overall-results-by-metric log metric))))
+    (apply + results)))
+
+(define (get-results-by-metric-prog log metric prog)
+  (let* ((results (get-log-results-by-metric log metric))
+         (prog-results (alist-ref prog results equal?)))
+    (cond
+     ;; If a test is missing then prog-results is #f
+     ((or (eq? metric 'build-time) (not prog-results))
+      prog-results)
+     ;; At least one execution failed
+     ((any not prog-results)
+      #f)
+     ;; Everything is ok.  Calculate the average
+     (else (average prog-results)))))
+
+
+(define (compare-text logs metrics)
   (let ((progs (sort (map (lambda (prog-data)
                             (alist-ref 'program prog-data))
                           (log-results (car logs)))
@@ -192,21 +246,115 @@ exec csi -s $0 "$@"
           (display-results
            prog
            (map (lambda (log)
-                  (let* ((results (get-log-results-by-metric log metric))
-                         (prog-results (alist-ref prog results equal?)))
-                    (cond
-                     ;; If a test is missing then prog-results is #f
-                     ((or (eq? metric 'build-time) (not prog-results))
-                      prog-results)
-                     ;; At least one execution failed
-                     ((any not prog-results)
-                      #f)
-                     ;; Everything is ok.  Calculate the average
-                     (else (average prog-results)))))
+                  (get-results-by-metric-prog log metric prog))
                 logs)))
         progs)
        (print "\n"))
      metrics)))
+
+(define (compare-html logs metrics)
+  (let* ((progs (sort (map (lambda (prog-data)
+                             (alist-ref 'program prog-data))
+                           (log-results (car logs)))
+                      string<))
+         (enumerated-logs (iota (length logs)))
+         (bench-options (get-log-bench-options logs))
+         (data
+          `((h2 "Table of contents")
+            (ul
+             (li (a (@ (href "#logs")) "Logs"))
+             (li (a (@ (href "#overall-results")) "Overall results"))
+             (li (a (@ (href "#results-by-metric")) "Results by metric")
+                 (ul ,@(map (lambda (metric)
+                              `(li (a (@ (href ,(sprintf "#results-by-metric-~a" metric)))
+                                      ,metric)))
+                            metrics)))
+             (li (a (@ (href "#results-by-program")) "Results by program")
+                 (ul ,@(intersperse
+                        (map (lambda (prog)
+                               `(a (@ (href ,(sprintf "#results-by-program-~a" prog)))
+                                   ,prog))
+                             progs)
+                        " "))))
+
+            (h2 (@ (id "logs")) "Logs")
+            ,@(map (lambda (log log-idx)
+                     `((h3 (span (@ (class ,(sprintf "color-~a" log-idx)))
+                                 "Log " ,log-idx))
+                       (ul ,@(map (lambda (opt)
+                                    `(li ,(car opt) ": " (code ,(cdr opt))))
+                                  (list-ref bench-options log-idx)))))
+                   logs
+                   enumerated-logs)
+
+            (h2 (@ (id "overall-results")) "Overall benchmark results")
+            (p "This is the sum of all results of all programs, classified by metric.")
+            ,@(map (lambda (metric)
+                     `((h3 (@ (id ,(sprintf "overall-results-~a" metric))) ,metric)
+                       ,(plot-chart
+                         (map (lambda (log log-idx)
+                                (list log-idx
+                                      (truncate* (get-overall-total-by-metric log metric))))
+                              logs
+                              enumerated-logs)
+                         unit: (alist-ref metric metrics/units))))
+                   metrics)
+
+            (h2 (@ (id "results-by-metric")) "Results by metric")
+            (p "In the tables below results are normalized "
+               "(larger numbers indicate better results).")
+            ,@(map (lambda (metric)
+                     (let* ((progs/logs-vals
+                             (map (lambda (prog)
+                                    (cons prog
+                                          (map (lambda (log)
+                                                 (get-results-by-metric-prog
+                                                  log metric prog))
+                                       logs)))
+                                  progs))
+                            (max-val
+                             (apply max (apply append
+                                               (map cdr progs/logs-vals)))))
+                       `((h3 (@ (id ,(sprintf "results-by-metric-~a" metric))) ,metric)
+                         ,(zebra-table
+                           (cons "Program" enumerated-logs)
+                           (map (lambda (prog)
+                                  (let* ((prog-times
+                                          (alist-ref prog progs/logs-vals equal?))
+                                         (best (find-best prog-times))
+                                         (worst (find-worst prog-times))
+                                         (norm-prog-times
+                                          (map (lambda (time)
+                                                 (normalize-result time best worst))
+                                               prog-times)))
+                                    (cons prog
+                                          (map (lambda (log-idx norm-val)
+                                                 (let ((val (car norm-val)))
+                                                   (if val
+                                                       (highlight-value norm-val #t)
+                                                       "FAIL")))
+                                               enumerated-logs
+                                               norm-prog-times))))
+                                progs)))))
+                   metrics)
+
+            (h2 (@ (id "results-by-program")) "Results by program")
+            ,@(map (lambda (prog)
+                     `((h3 (@ (id ,(sprintf "results-by-program-~a" prog))) ,prog)
+                       ,@(map (lambda (metric)
+                                `((h4 ,metric)
+                                  ,(plot-chart
+                                    (map (lambda (log log-idx)
+                                           (list log-idx
+                                                 (get-results-by-metric-prog log metric prog)))
+                                         logs
+                                         enumerated-logs)
+                                    unit: (alist-ref metric metrics/units))))
+                              metrics)))
+                   progs))
+          ))
+    (print (generate-html data))))
+
 
 (define (parse-metrics-from-command-line args all-metrics)
   (or (and-let* ((m (cmd-line-arg '--metrics args))
@@ -248,12 +396,13 @@ EOF
     (when exit-code (exit exit-code))))
 
 (let* ((parsed-args (parse-cmd-line (command-line-arguments)
-                                    '(--list-metrics
+                                    '(--html
+                                      --list-metrics
                                       (--metrics))))
        (args (cdr parsed-args))
        (log-files (car parsed-args))
-       (all-metrics '(build-time cpu-time major-gcs-time mutations
-                      mutations-tracked major-gcs minor-gcs)))
+       (html? (cmd-line-arg '--html args))
+       (all-metrics (map car metrics/units)))
 
   (when (cmd-line-arg '--list-metrics args)
     (for-each print (cons 'all all-metrics))
@@ -265,7 +414,8 @@ EOF
   (when (null? log-files)
     (usage 1))
 
-  (let ((metrics (parse-metrics-from-command-line args all-metrics)))
-    (compare (map read-log log-files) metrics)))
+  (let ((metrics (parse-metrics-from-command-line args all-metrics))
+        (printer (if html? compare-html compare-text)))
+    (printer (map read-log log-files) metrics)))
 
 ) ;; end module

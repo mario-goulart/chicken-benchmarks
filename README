@@ -73,6 +73,10 @@ Configuration file example:
 
 
 compare.scm can be used to display log results in a readable format.
+It prints pure text output (or text decorated with ANSI escape
+sequences if the output is a terminal) or generate an HTML page.
+compare.scm requires the sxml-transforms egg.
+
 Example:
 
   $ ./compare.scm 4.7.0.log 4.7.4.log

@@ -74,3 +74,8 @@
   (or (cmd-line-arg '-h args)
       (cmd-line-arg '-help args)
       (cmd-line-arg '--help args)))
+
+(define (truncate* n)
+  (if (integer? n)
+      n
+      (/ (truncate (* n 100.0)) 100)))
