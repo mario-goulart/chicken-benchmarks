@@ -63,16 +63,16 @@ ENDCSS
                (dy ".35em"))
             ,text)))
 
-(define (make-bar idx val max unit)
+(define (make-bar idx val max text)
   (let* ((bar-size (and val
                         (if (or (zero? val) (zero? max))
                             0
                             (fit-to-chart val max)))))
     (%make-bar idx
                (if val bar-size 0)
-               (if val (sprintf "~a~a" (truncate* val) unit) "FAIL"))))
+               text)))
 
-(define (plot-chart data #!key (unit ""))
+(define (plot-chart data #!key (unit-printer identity))
   (let ((max (apply max (map cadr data))))
     `(svg (@ (class "chart")
              (width ,chart-width)
@@ -80,7 +80,7 @@ ENDCSS
           ,@(map (lambda (item item-idx)
                    (let ((label (car item))
                          (val (cadr item)))
-                     (make-bar item-idx val max unit)))
+                     (make-bar item-idx val max (unit-printer val))))
                  data
                  (iota (length data))))))
 

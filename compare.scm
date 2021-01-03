@@ -35,8 +35,20 @@ exec csi -s $0 "$@"
 (define progs/pad 20)
 (define results/pad 10)
 
+(define (apply-multiplier n)
+  (cond ((> n (expt 1024 3))
+         (sprintf "~a GiB" (truncate* (/ n (expt 1024 3)))))
+        ((> n (expt 1024 2))
+         (sprintf "~a MiB" (truncate* (/ n (expt 1024 2)))))
+        ((> n 1024)
+         (sprintf "~a KiB" (truncate* (/ n 1024))))
+        (else
+         (sprintf "~a bytes" n))))
+
 (define metrics/units
-  '((build-time           . "s")
+  ;; Map metrics to units. A unit can be a string or a procedure that
+  ;; will be given a value and must produce a string.
+  `((build-time           . "s")
     (cpu-time             . "s")
     (major-gcs-time       . "s")
     (major-gcs            . "")
@@ -44,7 +56,15 @@ exec csi -s $0 "$@"
     (mutations            . "")
     (mutations-tracked    . "")
     (major-gcs minor-gcs  . "")
-    (max-live-heap        . " bytes")))
+    (max-live-heap        . ,apply-multiplier)))
+
+(define (apply-unit val metric)
+  (if val
+      (let ((unit (alist-ref metric metrics/units)))
+        (if (procedure? unit)
+            (unit val)
+            (sprintf "~a~a" val unit)))
+      "FAIL"))
 
 (define (get-metrics log-format-version)
   (let ((all-metrics (map car metrics/units)))
@@ -264,11 +284,10 @@ exec csi -s $0 "$@"
          (for-each
           (lambda (log log-idx)
             (let ((time (list-ref metric-results log-idx)))
-              (printf "[~a]: ~a (~a~a)\n"
+              (printf "[~a]: ~a (~a)\n"
                       log-idx
                       (highlight-value (normalize-result time best worst) #f)
-                      (truncate* time)
-                      (alist-ref metric metrics/units))))
+                      (apply-unit (truncate* time) metric))))
           logs
           enumerated-logs)))
      metrics)
@@ -337,7 +356,7 @@ exec csi -s $0 "$@"
                                       (truncate* (get-overall-total-by-metric log metric))))
                               logs
                               enumerated-logs)
-                         unit: (alist-ref metric metrics/units))))
+                         unit-printer: (lambda (n) (apply-unit n metric)))))
                    metrics)
 
             (h2 (@ (id "results-by-metric")) "Results by metric")
@@ -389,7 +408,7 @@ exec csi -s $0 "$@"
                                                  (get-results-by-metric-prog log metric prog)))
                                          logs
                                          enumerated-logs)
-                                    unit: (alist-ref metric metrics/units))))
+                                    unit-printer: (lambda (n) (apply-unit n metric)))))
                               metrics)))
                    progs))
           ))
