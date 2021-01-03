@@ -2,8 +2,8 @@
         (chicken port))
 (import srfi-1 sxml-transforms)
 
-(define chart-width 450)
-(define chart-text-space 100)
+(define chart-width 500)
+(define chart-text-space 150)
 (define bar-height 19)
 (define bar-space (+ 1 bar-height))
 

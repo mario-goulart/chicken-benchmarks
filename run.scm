@@ -117,18 +117,22 @@ exec csi -s $0 "$@"
   mutations-tracked
   major-gcs-time
   major-gcs
-  minor-gcs)
+  minor-gcs
+  max-live-heap)
 
 (define-record-printer (bench-result obj out)
   (fprintf
    out
-   "<bench-result cpu-time: ~S, major-gcs-time: ~S, mutations: ~S, mutations-tracked: ~S, major-gcs: ~S, minor-gcs: ~S"
+   (string-append
+    "<bench-result cpu-time: ~S, major-gcs-time: ~S, mutations: ~S, "
+    "mutations-tracked: ~S, major-gcs: ~S, minor-gcs: ~S, max-live-heap: ~S")
    (bench-result-cpu-time obj)
    (bench-result-major-gcs-time obj)
    (bench-result-mutations obj)
    (bench-result-mutations-tracked obj)
    (bench-result-major-gcs obj)
-   (bench-result-minor-gcs obj)))
+   (bench-result-minor-gcs obj)
+   (bench-result-max-live-heap obj)))
 
 (define (bench-result->alist bench-result)
   `((cpu-time          . ,(bench-result-cpu-time bench-result))
@@ -136,7 +140,8 @@ exec csi -s $0 "$@"
     (mutations         . ,(bench-result-mutations bench-result))
     (mutations-tracked . ,(bench-result-mutations-tracked bench-result))
     (major-gcs         . ,(bench-result-major-gcs bench-result))
-    (minor-gcs         . ,(bench-result-minor-gcs bench-result))))
+    (minor-gcs         . ,(bench-result-minor-gcs bench-result))
+    (max-live-heap     . ,(bench-result-max-live-heap bench-result))))
 
 
 (define parse-time-output
@@ -152,13 +157,16 @@ exec csi -s $0 "$@"
          (gcs-pattern
           '(: (=> major-gcs (+ num)) "/"
               (=> minor-gcs (+ num)) " GCs (major/minor)"))
+         (max-live-heap-pattern
+          `(: "maximum live heap: " (=> max-live-heap ,flonum) " "
+              (=> heap-mult (or "bytes" "KiB" "MiB" "GiB"))))
          (subnum (lambda (match name)
                    (or (and-let* ((val (irregex-match-substring match name)))
                          (string->number val))
                        0))))
     (lambda (line)
       (let ((tokens (map string-trim-both (string-split line ",")))
-            (result (make-bench-result 0 0 0 0 0 0)))
+            (result (make-bench-result 0 0 0 0 0 0 0)))
         (for-each
          (lambda (token)
            (cond
@@ -175,7 +183,19 @@ exec csi -s $0 "$@"
             ((irregex-match gcs-pattern token)
              => (lambda (match)
                   (bench-result-minor-gcs-set! result (subnum match 'minor-gcs))
-                  (bench-result-major-gcs-set! result (subnum match 'major-gcs))))))
+                  (bench-result-major-gcs-set! result (subnum match 'major-gcs))))
+            ((irregex-match max-live-heap-pattern token)
+             => (lambda (match)
+                  (let* ((max-live-heap (subnum match 'max-live-heap))
+                         (%mult (irregex-match-substring match 'heap-mult))
+                         (mult (cond ((string=? %mult "bytes") 1)
+                                     ((string=? %mult "KiB") 1024)
+                                     ((string=? %mult "MiB") (expt 1024 2))
+                                     ((string=? %mult "GiB") (expt 1024 3)))))
+                    (bench-result-max-live-heap-set!
+                     result
+                     (inexact->exact (round (* max-live-heap mult)))))))
+            ))
          tokens)
         result))))
 
@@ -408,7 +428,7 @@ mGC[7] => number of minor GCs
   ;; <deviances> is an alist (<metric> . <deviance>)
   (with-output-to-file (log-file)
     (lambda ()
-      (pp `((log-format-version . 2)
+      (pp `((log-format-version . 3)
             (repetitions . ,(repetitions))
             (installation-prefix . ,(installation-prefix))
             (csc-options . ,(csc-options))

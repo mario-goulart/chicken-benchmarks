@@ -43,7 +43,15 @@ exec csi -s $0 "$@"
     (minor-gcs            . "")
     (mutations            . "")
     (mutations-tracked    . "")
-    (major-gcs minor-gcs  . "")))
+    (major-gcs minor-gcs  . "")
+    (max-live-heap        . " bytes")))
+
+(define (get-metrics log-format-version)
+  (let ((all-metrics (map car metrics/units)))
+    ;; max-live-heap was added in log format version 3
+    (if (< log-format-version 3)
+        (delete 'max-live-heap all-metrics)
+        all-metrics)))
 
 (define (get-log-bench-options logs)
   (map (lambda (log)
@@ -460,6 +468,6 @@ EOF
         (printer (if html? compare-html compare-text))
         (logs-data (map read-log log-files)))
     (check-logs! logs-data)
-    (printer logs-data metrics)))
+    (printer logs-data (get-metrics (log-version (car logs-data))))))
 
 ) ;; end module
