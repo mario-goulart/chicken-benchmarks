@@ -411,6 +411,16 @@ exec csi -s $0 "$@"
               ms)))
       '(cpu-time)))
 
+(define (check-logs! logs-data)
+  ;; Verify that logs can be compared
+  (let* ((log-format-versions (map log-version logs-data))
+         (version (car log-format-versions)))
+    (unless (every (lambda (v)
+                     (= v version))
+                   log-format-versions)
+      (die! "Cannot compare logs of different format versions.")
+      (exit 1))))
+
 (define (usage #!optional exit-code)
   (let ((program (pathname-strip-directory (program-name)))
         (port (if (and exit-code (not (zero? exit-code)))
@@ -447,7 +457,9 @@ EOF
     (usage 1))
 
   (let ((metrics (parse-metrics-from-command-line args all-metrics))
-        (printer (if html? compare-html compare-text)))
-    (printer (map read-log log-files) metrics)))
+        (printer (if html? compare-html compare-text))
+        (logs-data (map read-log log-files)))
+    (check-logs! logs-data)
+    (printer logs-data metrics)))
 
 ) ;; end module
