@@ -66,8 +66,7 @@ exec csi -s $0 "$@"
                       (print "|-> " (car opt) ": " (cdr opt)))
                     (list-ref bench-options (sub1 id)))
           (newline))
-        (loop (cdr logs) (+ id 1))))
-    (print "Displaying normalized results (larger numbers indicate better results)\n")))
+        (loop (cdr logs) (+ id 1))))))
 
 (define (display-columns-header logs)
   (let ((num-logs (length logs)))
@@ -235,11 +234,44 @@ exec csi -s $0 "$@"
   (let ((progs (sort (map (lambda (prog-data)
                             (alist-ref 'program prog-data))
                           (log-results (car logs)))
-                     string<)))
+                     string<))
+        (enumerated-logs (iota (length logs)))
+        (overall-results
+         (map (lambda (metric)
+                (cons metric
+                      (map (lambda (log)
+                             (get-overall-total-by-metric log metric))
+                           logs)))
+              metrics)))
+
     (display-header logs)
+
+    (print "===\n=== Overall results\n===")
     (for-each
      (lambda (metric)
-       (printf "===\n=== ~a\n===\n\n" metric)
+       (let* ((metric-results (alist-ref metric overall-results))
+              (best (find-best metric-results))
+              (worst (find-worst metric-results)))
+         (printf "\n=== [~a]\n" metric)
+         (for-each
+          (lambda (log log-idx)
+            (let ((time (list-ref metric-results log-idx)))
+              (printf "[~a]: ~a (~a~a)\n"
+                      log-idx
+                      (highlight-value (normalize-result time best worst) #f)
+                      (truncate* time)
+                      (alist-ref metric metrics/units))))
+          logs
+          enumerated-logs)))
+     metrics)
+
+    (print "\n\n===\n=== Results by metric\n===")
+
+    (print "\n\nIn the tables below results are normalized "
+           "(larger numbers indicate better results).\n")
+    (for-each
+     (lambda (metric)
+       (printf "=== [~a]\n\n" metric)
        (display-columns-header logs)
        (for-each
         (lambda (prog)
