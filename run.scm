@@ -238,7 +238,8 @@ exec csi -s $0 "$@"
          "Mut[4]"
          "MT [5]"
          "MGC[6]"
-         "mGC[7]")))
+         "mGC[7]"
+         "MLH[8]")))
 
 (define (display-header)
   (print "Columns legend:
@@ -250,6 +251,7 @@ Mut[4] => number of mutations
 MT [5] => number of tracked mutations
 MGC[6] => number of major GCs
 mGC[7] => number of minor GCs
+MLH[8] => max live heap (bytes)
 ")
   (display (string-append
             (make-string 1st-col-width)
@@ -280,7 +282,7 @@ mGC[7] => number of minor GCs
       num))
 
 (define (make-failure-results)
-  (make-list 6 #f))
+  (make-list 7 #f))
 
 (define (make-failure-bench-result)
   (apply make-bench-result (make-failure-results)))
@@ -305,7 +307,9 @@ mGC[7] => number of minor GCs
                    (cons (average results bench-result-major-gcs)
                          (alist-ref 'major-gcs deviances))
                    (cons (average results bench-result-minor-gcs)
-                         (alist-ref 'minor-gcs deviances))))))
+                         (alist-ref 'minor-gcs deviances))
+                   (cons (average results bench-result-max-live-heap)
+                         (alist-ref 'max-live-heap deviances))))))
     (define (format val/deviance)
       ;; `val/deviance' is a pair (<actual val> . <deviance>)
       (let ((val (car val/deviance))
@@ -336,6 +340,7 @@ mGC[7] => number of minor GCs
              (mutations-tracked 0)
              (minor-gcs 0)
              (major-gcs 0)
+             (max-live-heap 0)
              (failures 0))
     (if (null? results)
         `((compile-time      . ,compile-time)
@@ -345,6 +350,7 @@ mGC[7] => number of minor GCs
           (mutations-tracked . ,mutations-tracked)
           (minor-gcs         . ,minor-gcs)
           (major-gcs         . ,major-gcs)
+          (max-live-heap     . ,max-live-heap)
           (failures          . ,failures))
         (let* ((result (car results))
                (result-objs (cadddr result))
@@ -361,6 +367,7 @@ mGC[7] => number of minor GCs
                 (+ mutations-tracked (maybe-sum bench-result-mutations-tracked))
                 (+ minor-gcs (maybe-sum bench-result-minor-gcs))
                 (+ major-gcs (maybe-sum bench-result-major-gcs))
+                (+ max-live-heap (maybe-sum bench-result-max-live-heap))
                 (+ failures (if failure? 1 0)))))))
 
 
@@ -382,12 +389,14 @@ mGC[7] => number of minor GCs
 (define (compute-program-deviances prog result-objs)
   ;; Return an alist `(<metric> . <deviance>)
   (let ((results-alist (map bench-result->alist result-objs))
+        ;; FIXME: use (map car metrics/units) (or (map car results-alist)?)
         (metrics '(cpu-time
                    major-gcs-time
                    mutations
                    mutations-tracked
                    major-gcs
-                   minor-gcs)))
+                   minor-gcs
+                   max-live-heap)))
     (map (lambda (metric)
            (let ((vals
                   (let loop ((results results-alist))
