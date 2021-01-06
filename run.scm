@@ -293,8 +293,12 @@ MLH[8] => max live heap (bytes)
 (define (display-results prog compile-time results deviances)
   ;; `results' is a list of bench-result objects
   (let ((vals
+         ;; vals is an alist mapping everages to deviances or a list
+         ;; '((<compile-time> . 0) #f ...) to indicate a failure.
+         ;;
+         ;; compile-time is a one-shot measure, thus deviance is 0
          (if (failure-bench-result? (car results))
-             (cons compile-time (make-failure-results))
+             (append `((,compile-time . 0)) (make-failure-results))
              (list (cons compile-time 0)
                    (cons (average results bench-result-cpu-time)
                          (alist-ref 'cpu-time deviances))
@@ -311,15 +315,15 @@ MLH[8] => max live heap (bytes)
                    (cons (average results bench-result-max-live-heap)
                          (alist-ref 'max-live-heap deviances))))))
     (define (format val/deviance)
-      ;; `val/deviance' is a pair (<actual val> . <deviance>)
-      (let ((val (car val/deviance))
-            (deviance (cdr val/deviance)))
-        (if val
-            (let ((val-str (->string (maybe-drop-.0 val))))
-              (if (> deviance (max-deviance))
-                  (string-append "*" val-str)
-                  val-str))
-            "FAIL")))
+      ;; `val/deviance' is a pair (<actual val> . <deviance>) or #f (failure)
+      (if val/deviance
+          (let* ((val (car val/deviance))
+                 (deviance (cdr val/deviance))
+                 (val-str (->string (maybe-drop-.0 val))))
+            (if (> deviance (max-deviance))
+                (string-append "*" val-str)
+                val-str))
+          "FAIL"))
     (for-each (lambda (val/deviance idx)
                 (display (string-pad-right
                           (format val/deviance)
