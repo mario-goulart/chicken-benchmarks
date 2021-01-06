@@ -257,8 +257,34 @@ exec csi -s $0 "$@"
      ;; Everything is ok.  Calculate the average
      (else (average prog-results)))))
 
+(define (get-program-deviance log prog metric)
+  (let loop ((results (log-results log)))
+    (if (null? results)
+        '()
+        (let* ((result (car results))
+               (program (alist-ref 'program result)))
+          (if (string=? prog program)
+              (alist-ref metric (alist-ref 'deviances result))
+              (loop (cdr results)))))))
 
-(define (compare-text logs metrics)
+(define (get-deviances-by-metric-program logs metrics progs)
+  ;; Returns a list like
+  ;;
+  ;; ((<metric> ((<prog1> <deviance log1> ...) ...))
+  ;;  ...)
+  (map (lambda (metric)
+         (cons metric
+               (map (lambda (prog)
+                      (cons prog
+                            (map (lambda (log)
+                                   (get-program-deviance log prog metric))
+                                 logs)))
+                    progs)))
+       metrics))
+
+(define (compare-text logs metrics max-deviance)
+  ;; max-deviance is currently not used here (it's only here so that
+  ;; compare-text has the same signature as compare-html.
   (let ((progs (sort (map (lambda (prog-data)
                             (alist-ref 'program prog-data))
                           (log-results (car logs)))
@@ -311,7 +337,7 @@ exec csi -s $0 "$@"
        (print "\n"))
      metrics)))
 
-(define (compare-html logs metrics)
+(define (compare-html logs metrics max-deviance)
   (let* ((progs (sort (map (lambda (prog-data)
                              (alist-ref 'program prog-data))
                            (log-results (car logs)))
@@ -334,7 +360,13 @@ exec csi -s $0 "$@"
                                `(a (@ (href ,(sprintf "#results-by-program-~a" prog)))
                                    ,prog))
                              progs)
-                        " "))))
+                        " ")))
+             (li (a (@ (href "#deviances-by-metric-percentages"))
+                    "Deviances by metric (raw percentages)")
+                 (ul ,@(map (lambda (metric)
+                              `(li (a (@ (href ,(sprintf "#~a-deviances-percentages" metric)))
+                                      ,metric)))
+                            metrics))))
 
             (h2 (@ (id "logs")) "Logs")
             ,@(map (lambda (log log-idx)
@@ -405,13 +437,42 @@ exec csi -s $0 "$@"
                                   ,(plot-chart
                                     (map (lambda (log log-idx)
                                            (list log-idx
-                                                 (get-results-by-metric-prog log metric prog)))
+                                                 (get-results-by-metric-prog
+                                                  log metric prog)))
                                          logs
                                          enumerated-logs)
-                                    unit-printer: (lambda (n) (apply-unit n metric)))))
+                                    unit-printer: (lambda (n)
+                                                    (apply-unit n metric)))))
                               metrics)))
-                   progs))
-          ))
+                   progs)
+
+            (h2 (@ (id "deviances-by-metric-percentages"))
+                "Deviances by metric (raw percentages)")
+            (p "Deviances greater than " ,max-deviance "% are highlighted.")
+            ,(let* (;; build-time is a one-shot measurement -- no deviance
+                    (deviance-metrics (delete 'build-time metrics))
+                    (deviances
+                     (get-deviances-by-metric-program logs deviance-metrics progs)))
+               (map (lambda (metric)
+                      `((h3 (@ (id ,(sprintf "~a-deviances-percentages" metric)))
+                            ,metric)
+                        ,(let ((metric-deviances (alist-ref metric deviances)))
+                           (zebra-table
+                            (cons "Program" enumerated-logs)
+                            (map (lambda (prog)
+                                   (let ((prog-deviances
+                                          (alist-ref prog metric-deviances equal?)))
+                                     (cons prog
+                                           (map (lambda (val)
+                                                  (if val
+                                                      (if (> val max-deviance)
+                                                          (highlight-worst (truncate* val) #t)
+                                                          (truncate* val))
+                                                      "FAIL"))
+                                                prog-deviances))))
+                                 progs)))))
+                    deviance-metrics))
+            )))
     (print (generate-html data))))
 
 
@@ -456,10 +517,12 @@ exec csi -s $0 "$@"
     (display #<#EOF
 Usage:
    #program --list-metrics
-   #program [ --metrics=m1[,m2,...] ] log-file-1 log-file-2 ...
+   #program [--metrics=m1[,m2,...]] [--max-deviance=<percentage>] log-file-1 log-file-2 ...
 
 If metrics are not specified, only results for cpu-time will be displayed.
 
+if --max-deviance is provided, results whose deviance are greater than
+<percentage> will be highlighted.  If omitted, 5% will be used.
 EOF
     port)
     (when exit-code (exit exit-code))))
@@ -467,6 +530,7 @@ EOF
 (let* ((parsed-args (parse-cmd-line (command-line-arguments)
                                     '(--html
                                       --list-metrics
+                                      (--max-deviance)
                                       (--metrics))))
        (args (cdr parsed-args))
        (log-files (car parsed-args))
@@ -484,9 +548,12 @@ EOF
     (usage 1))
 
   (let ((metrics (parse-metrics-from-command-line args all-metrics))
+        (max-deviance (or (cmd-line-arg '--max-deviance args) "5"))
         (printer (if html? compare-html compare-text))
         (logs-data (map read-log log-files)))
     (check-logs! logs-data)
-    (printer logs-data (get-metrics (log-version (car logs-data))))))
+    (printer logs-data
+             (get-metrics (log-version (car logs-data)))
+             (string->number max-deviance))))
 
 ) ;; end module
