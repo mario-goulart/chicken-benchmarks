@@ -370,7 +370,8 @@ exec csi -s $0 "$@"
 
             (h2 (@ (id "logs")) "Logs")
             ,@(map (lambda (log log-idx)
-                     `((h3 (span (@ (class ,(sprintf "color-~a" log-idx)))
+                     `((h3 (span (@ (style ,(sprintf "background-color: ~a"
+                                                     (list-ref colors log-idx))))
                                  "Log " ,log-idx))
                        (ul ,@(map (lambda (opt)
                                     `(li ,(car opt) ": " (code ,(cdr opt))))
