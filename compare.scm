@@ -63,7 +63,7 @@ exec csi -s $0 "$@"
       (let ((unit (alist-ref metric metrics/units)))
         (if (procedure? unit)
             (unit val)
-            (sprintf "~a~a" val unit)))
+            (sprintf "~a~a" (truncate* val) unit)))
       "FAIL"))
 
 (define (get-metrics log-format-version)
