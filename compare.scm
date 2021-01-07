@@ -255,7 +255,7 @@ exec csi -s $0 "$@"
      ((any not prog-results)
       #f)
      ;; Everything is ok.  Calculate the average
-     (else (average prog-results)))))
+     (else (average (filter identity prog-results))))))
 
 (define (get-program-deviance log prog metric)
   (let loop ((results (log-results log)))
@@ -404,10 +404,10 @@ exec csi -s $0 "$@"
                                                   log metric prog))
                                        logs)))
                                   progs))
-                            (max-val
-                             (apply max (apply append
-                                               (map cdr progs/logs-vals)))))
-                       `((h3 (@ (id ,(sprintf "results-by-metric-~a" metric))) ,metric)
+                            (vals (apply append (map cdr progs/logs-vals)))
+                            (max-val (apply max (filter identity vals))))
+                       `((h3 (@ (id ,(sprintf "results-by-metric-~a" metric)))
+                             ,metric)
                          ,(zebra-table
                            (cons "Program" enumerated-logs)
                            (map (lambda (prog)
