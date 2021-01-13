@@ -19,8 +19,9 @@
   ;; spec: list of elements.  The format of elements is:
   ;;  - symbols: options that do not require an argument
   ;;  - lists: options that require an argument.
-  ;;  - what doesn't match these patterns is assumed to be a no named arg
-  ;; Return a pair (<eggs> . <alist opts>)
+  ;;  - what doesn't match these patterns is assumed to be a not-named arg
+  ;; Return a pair ((<not-named args>) . (<opt> . <val>) ...), where <val> for
+  ;; options which don't require an argument is #t.
   ;; Note: options are supposed to start with `--'.  -h and -help are
   ;;       specially handled.
   (let ((nonamed '())
