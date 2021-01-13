@@ -546,12 +546,25 @@ exec csi -s $0 "$@"
     (display #<#EOF
 Usage:
    #program --list-metrics
-   #program [--metrics=m1[,m2,...]] [--max-deviance=<percentage>] log-file-1 log-file-2 ...
+   #program <options> log-file-1 log-file-2 ...
 
-If metrics are not specified, only results for cpu-time will be displayed.
+<options>:
+--metrics=m1[,m2,...]
+  Comma-separated list of metrics to compare.  If not specified, only results
+  for cpu-time will be displayed.  Use --list-metrics to see all metrics.
 
-if --max-deviance is provided, results whose deviance are greater than
-<percentage> will be highlighted.  If omitted, 5% will be used.
+--max-deviance=<percentage>
+  If provided, results whose deviance are greater than <percentage> will be
+  highlighted.  If omitted, 5% will be used.
+
+--label=<label> ...
+  Label to be used for chart bars in HTML mode.  If provided, the number of
+  --label options must match the number of log files provided as inputs.
+  If not provided, labels will be infered from the log file paths.
+
+--html
+  If provided, HTML code will be printed to the standard output.
+
 EOF
     port)
     (when exit-code (exit exit-code))))
