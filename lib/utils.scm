@@ -54,22 +54,32 @@
         (loop (cdr args))))
     (cons (reverse nonamed) parsed-opts)))
 
-(define (cmd-line-arg option parsed-opts)
+(define (cmd-line-arg option parsed-opts #!key multiple?)
   ;; Returns the argument associated to the command line option OPTION
   ;; in ARGS or #f if OPTION is not found in ARGS.  ARGS is the cdr of
-  ;; the pair returned by parse-cmd-line.
-  (let loop ((opts parsed-opts))
-    (if (null? opts)
-        #f
-        (let* ((opt (car opts))
-               (param (if (pair? opt)
-                          (car opt)
-                          opt)))
-          (cond ((and (pair? opt) (eq? (car opt) option))
-                 (cdr opt))
-                ((and (symbol? opt) (eq? opt option))
-                 #t)
-                (else (loop (cdr opts))))))))
+  ;; the pair returned by parse-cmd-line.  If `multiple?' is #t and the
+  ;; option requires a value, a list of values bound to the given option
+  ;; is returned.
+  (let ((val
+         (let loop ((opts parsed-opts))
+           (if (null? opts)
+               (if multiple?
+                   '()
+                   #f)
+               (let* ((opt (car opts))
+                      (param (if (pair? opt)
+                                 (car opt)
+                                 opt)))
+                 (cond ((and (pair? opt) (eq? (car opt) option))
+                        (if multiple?
+                            (cons (cdr opt) (loop (cdr opts)))
+                            (cdr opt)))
+                       ((and (symbol? opt) (eq? opt option))
+                        #t)
+                       (else (loop (cdr opts)))))))))
+    (if (list? val)
+        (reverse val)
+        val)))
 
 (define (help-requested? args)
   (or (cmd-line-arg '-h args)
