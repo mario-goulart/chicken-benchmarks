@@ -558,6 +558,7 @@ EOF
 
 (let* ((parsed-args (parse-cmd-line (command-line-arguments)
                                     '(--html
+                                      --help
                                       (--label)
                                       --list-metrics
                                       (--max-deviance)
