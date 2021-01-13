@@ -282,7 +282,7 @@ exec csi -s $0 "$@"
                     progs)))
        metrics))
 
-(define (compare-text logs metrics max-deviance)
+(define (compare-text logs metrics max-deviance labels)
   ;; max-deviance is currently not used here (it's only here so that
   ;; compare-text has the same signature as compare-html.
   (let ((progs (sort (map (lambda (prog-data)
@@ -337,7 +337,7 @@ exec csi -s $0 "$@"
        (print "\n"))
      metrics)))
 
-(define (compare-html logs metrics max-deviance)
+(define (compare-html logs metrics max-deviance labels)
   (let* ((progs (sort (map (lambda (prog-data)
                              (alist-ref 'program prog-data))
                            (log-results (car logs)))
@@ -369,26 +369,27 @@ exec csi -s $0 "$@"
                             metrics))))
 
             (h2 (@ (id "logs")) "Logs")
-            ,@(map (lambda (log log-idx)
+            ,@(map (lambda (log log-idx label)
                      `((h3 (span (@ (style ,(sprintf "background-color: ~a"
                                                      (list-ref colors log-idx))))
-                                 "Log " ,log-idx))
+                                 ,label))
                        (ul ,@(map (lambda (opt)
                                     `(li ,(car opt) ": " (code ,(cdr opt))))
                                   (list-ref bench-options log-idx)))))
                    logs
-                   enumerated-logs)
+                   enumerated-logs
+                   labels)
 
             (h2 (@ (id "overall-results")) "Overall benchmark results")
             (p "This is the sum of all results of all programs, classified by metric.")
             ,@(map (lambda (metric)
                      `((h3 (@ (id ,(sprintf "overall-results-~a" metric))) ,metric)
                        ,(plot-chart
-                         (map (lambda (log log-idx)
-                                (list log-idx
+                         (map (lambda (log label)
+                                (list label
                                       (truncate* (get-overall-total-by-metric log metric))))
                               logs
-                              enumerated-logs)
+                              labels)
                          unit-printer: (lambda (n) (apply-unit n metric)))))
                    metrics)
 
@@ -436,12 +437,12 @@ exec csi -s $0 "$@"
                        ,@(map (lambda (metric)
                                 `((h4 ,metric)
                                   ,(plot-chart
-                                    (map (lambda (log log-idx)
-                                           (list log-idx
+                                    (map (lambda (log label)
+                                           (list label
                                                  (get-results-by-metric-prog
                                                   log metric prog)))
                                          logs
-                                         enumerated-logs)
+                                         labels)
                                     unit-printer: (lambda (n)
                                                     (apply-unit n metric)))))
                               metrics)))
@@ -510,6 +511,33 @@ exec csi -s $0 "$@"
       (die! "Cannot compare logs of different format versions.")
       (exit 1))))
 
+(define (infer-labels log-files)
+  (define (get-common-prefix paths)
+    (if (any null? paths)
+        '()
+        (let ((first-path-components (map car paths))
+              (maybe-common (caar paths)))
+          (if (every (lambda (prefix)
+                       (string=? prefix maybe-common))
+                     first-path-components)
+              (cons maybe-common
+                    (get-common-prefix (map cdr paths)))
+              '()))))
+  (let ((common-prefix
+         (get-common-prefix
+          (map (lambda (path)
+                 (string-split path "/"))
+               log-files))))
+    (map pathname-strip-extension
+         (if (null? common-prefix)
+             log-files
+             (let ((len-common-prefix
+                    (+ (length common-prefix)
+                       (apply + (map string-length common-prefix)))))
+               (map (lambda (path)
+                      (substring path len-common-prefix))
+                    log-files))))))
+
 (define (usage #!optional exit-code)
   (let ((program (pathname-strip-directory (program-name)))
         (port (if (and exit-code (not (zero? exit-code)))
@@ -530,12 +558,14 @@ EOF
 
 (let* ((parsed-args (parse-cmd-line (command-line-arguments)
                                     '(--html
+                                      (--label)
                                       --list-metrics
                                       (--max-deviance)
                                       (--metrics))))
        (args (cdr parsed-args))
        (log-files (car parsed-args))
        (html? (cmd-line-arg '--html args))
+       (labels (cmd-line-arg '--label args multiple?: #t))
        (all-metrics (map car metrics/units)))
 
   (when (cmd-line-arg '--list-metrics args)
@@ -548,13 +578,21 @@ EOF
   (when (null? log-files)
     (usage 1))
 
+  (when (and (not (null? labels))
+             (not (= (length labels) (length log-files))))
+    (die! "The number of --label parameters must be equal to the number of log files."))
+
   (let ((metrics (parse-metrics-from-command-line args all-metrics))
         (max-deviance (or (cmd-line-arg '--max-deviance args) "5"))
         (printer (if html? compare-html compare-text))
-        (logs-data (map read-log log-files)))
+        (logs-data (map read-log log-files))
+        (labels (if (null? labels)
+                    (infer-labels log-files)
+                    labels)))
     (check-logs! logs-data)
     (printer logs-data
              (get-metrics (log-version (car logs-data)))
-             (string->number max-deviance))))
+             (string->number max-deviance)
+             labels)))
 
 ) ;; end module

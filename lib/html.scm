@@ -74,15 +74,21 @@ ENDCSS
 
 (define (plot-chart data #!key (unit-printer identity))
   (let* ((all-vals (filter identity (apply append (map cdr data))))
-         (max-val (and (not (null? all-vals)) (apply max all-vals))))
+         (max-val (and (not (null? all-vals)) (apply max all-vals)))
+         (max-label-len (apply max (map string-length (map car data)))))
     (if max-val
         `(svg (@ (class "chart")
-                 (width ,chart-width)
+                 (width ,(+ chart-width (* 12 max-label-len))) ;; hack: 12px/char
                  (height ,(* bar-space (length data))))
               ,@(map (lambda (item item-idx)
                        (let ((label (car item))
                              (val (cadr item)))
-                         (make-bar item-idx val max-val (unit-printer val))))
+                         (make-bar item-idx
+                                   val
+                                   max-val
+                                   (sprintf "~a: ~a"
+                                            label
+                                            (unit-printer val)))))
                      data
                      (iota (length data))))
         "FAIL")))
