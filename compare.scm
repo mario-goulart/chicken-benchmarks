@@ -55,7 +55,6 @@ exec csi -s $0 "$@"
     (minor-gcs            . "")
     (mutations            . "")
     (mutations-tracked    . "")
-    (major-gcs minor-gcs  . "")
     (max-live-heap        . ,apply-multiplier)))
 
 (define (apply-unit val metric)
