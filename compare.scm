@@ -579,7 +579,8 @@ EOF
        (log-files (car parsed-args))
        (html? (cmd-line-arg '--html args))
        (labels (cmd-line-arg '--label args multiple?: #t))
-       (all-metrics (map car metrics/units)))
+       (logs-data (map read-log log-files))
+       (all-metrics (get-metrics (log-version (car logs-data)))))
 
   (when (cmd-line-arg '--list-metrics args)
     (for-each print (cons 'all all-metrics))
@@ -598,13 +599,12 @@ EOF
   (let ((metrics (parse-metrics-from-command-line args all-metrics))
         (max-deviance (or (cmd-line-arg '--max-deviance args) "5"))
         (printer (if html? compare-html compare-text))
-        (logs-data (map read-log log-files))
         (labels (if (null? labels)
                     (infer-labels log-files)
                     labels)))
     (check-logs! logs-data)
     (printer logs-data
-             (get-metrics (log-version (car logs-data)))
+             metrics
              (string->number max-deviance)
              labels)))
 
