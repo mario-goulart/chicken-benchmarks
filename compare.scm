@@ -575,37 +575,38 @@ EOF
                                       --list-metrics
                                       (--max-deviance)
                                       (--metrics))))
-       (args (cdr parsed-args))
-       (log-files (car parsed-args))
-       (html? (cmd-line-arg '--html args))
-       (labels (cmd-line-arg '--label args multiple?: #t))
-       (logs-data (map read-log log-files))
-       (all-metrics (get-metrics (log-version (car logs-data)))))
-
-  (when (cmd-line-arg '--list-metrics args)
-    (for-each print (cons 'all all-metrics))
-    (exit 0))
+       (args (cdr parsed-args)))
 
   (when (help-requested? args)
     (usage 0))
 
-  (when (null? log-files)
-    (usage 1))
+  (let* ((log-files (car parsed-args))
+         (html? (cmd-line-arg '--html args))
+         (labels (cmd-line-arg '--label args multiple?: #t))
+         (logs-data (map read-log log-files))
+         (all-metrics (get-metrics (log-version (car logs-data)))))
 
-  (when (and (not (null? labels))
-             (not (= (length labels) (length log-files))))
-    (die! "The number of --label parameters must be equal to the number of log files."))
+    (when (cmd-line-arg '--list-metrics args)
+      (for-each print (cons 'all all-metrics))
+      (exit 0))
 
-  (let ((metrics (parse-metrics-from-command-line args all-metrics))
-        (max-deviance (or (cmd-line-arg '--max-deviance args) "5"))
-        (printer (if html? compare-html compare-text))
-        (labels (if (null? labels)
-                    (infer-labels log-files)
-                    labels)))
-    (check-logs! logs-data)
-    (printer logs-data
-             metrics
-             (string->number max-deviance)
-             labels)))
+    (when (null? log-files)
+      (usage 1))
+
+    (when (and (not (null? labels))
+               (not (= (length labels) (length log-files))))
+      (die! "The number of --label parameters must be equal to the number of log files."))
+
+    (let ((metrics (parse-metrics-from-command-line args all-metrics))
+          (max-deviance (or (cmd-line-arg '--max-deviance args) "5"))
+          (printer (if html? compare-html compare-text))
+          (labels (if (null? labels)
+                      (infer-labels log-files)
+                      labels)))
+      (check-logs! logs-data)
+      (printer logs-data
+               metrics
+               (string->number max-deviance)
+               labels))))
 
 ) ;; end module
