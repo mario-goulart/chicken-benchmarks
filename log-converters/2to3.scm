@@ -7,7 +7,7 @@ exec csi -s $0 "$@"
 (cond-expand
   (chicken-4
    (import chicken))
-  (chicken-5
+  ((or chicken-5 chicken-6)
    (import (chicken pretty-print)
            (chicken process-context)))
   (else

@@ -1,5 +1,6 @@
-(cond-expand (chicken-4 (use posix))
-      (else (import (chicken file))))
+(cond-expand
+ (chicken-4 (use posix))
+ (else (import (chicken file))))
 
 (define slatex-iters       20)
 
@@ -2370,7 +2371,7 @@
     "test"))
 
 (cond-expand
-  (chicken-5
+  ((or chicken-5 chicken-6)
     (define (setup!)
       (import (chicken process-context) (chicken file)
               (chicken errno) (chicken condition))

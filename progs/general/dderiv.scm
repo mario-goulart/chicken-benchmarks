@@ -34,7 +34,10 @@
 
 ;;; :property keyword is not Common Lisp.
 
-(cond-expand (chicken-5 (import (chicken plist))) (else))
+(cond-expand
+ ((or chicken-5 chicken-6)
+  (import (chicken plist)))
+ (else))
 
 
 (define (dderiv-aux a) (list '/ (dderiv a) a))

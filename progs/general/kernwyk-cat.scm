@@ -2,8 +2,10 @@
 ;;; http://cm.bell-labs.com/cm/cs/who/bwk/interps/pap.html
 ;;; Rewritten by Will Clinger into more idiomatic Scheme.
 
-(cond-expand (chicken-5 (import (chicken file)))
-      (else))
+(cond-expand
+ ((or chicken-5 chicken-6)
+  (import (chicken file)))
+ (else))
 
 (define (catport in out)
   (let ((x (read-char in)))

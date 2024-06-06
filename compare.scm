@@ -20,7 +20,7 @@ exec csi -s $0 "$@"
             ,(make-pathname (pathname-directory ##sys#current-load-path)
                             path))))))
    )
-  (chicken-5
+  ((or chicken-5 chicken-6)
    (import (chicken base)
            (chicken pathname)
            (chicken process-context)

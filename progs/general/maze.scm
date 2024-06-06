@@ -13,8 +13,9 @@
 ;;; Rehacked by Olin 4/1995.
 
 (cond-expand
-  (chicken-5 (import (chicken bitwise)))
-  (else #f))
+ ((or chicken-5 chicken-6)
+  (import (chicken bitwise)))
+ (else #f))
 
 (define (random-state n)
   (cons n #f))

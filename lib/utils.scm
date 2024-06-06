@@ -2,7 +2,7 @@
 (cond-expand
  (chicken-4
   (use data-structures extras srfi-1 srfi-13))
- (chicken-5
+ ((or chicken-5 chicken-6)
   (import (chicken format)
           (chicken string))
   (import srfi-1 srfi-13))

@@ -8,8 +8,15 @@
 ;;; is produced, and the lines are then written to the output
 ;;; in the reverse of the order in which they were read.
 (cond-expand
-  (chicken-4 (use extras))
-  (chicken-5 (import (chicken io) (chicken file))))
+ (chicken-4
+  (use extras))
+ ((or chicken-5 chicken-6)
+  (import (chicken io) (chicken file))
+  (cond-expand
+   (chicken-6
+    (import (rename (scheme base) (write-string %write-string)))
+    (define (write-string str port start) (%write-string str start port))
+    ))))
 
 (define (tail-r-aux port file-so-far)
   (let ((x (read-line port)))

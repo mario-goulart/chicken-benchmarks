@@ -3,7 +3,7 @@
 ;;; contributed by Sven Hartrumpf
 
 (cond-expand
-  (chicken-5 (import (chicken bitwise)))
+  ((or chicken-5 chicken-6) (import (chicken bitwise)))
   (else #f))
 
 (define make (lambda (item d)

@@ -1,9 +1,9 @@
 ;;; SIMPLEX -- Simplex algorithm.
 
 (cond-expand
-  (chicken-5
-   (import (chicken fixnum)))
-  (else))
+ ((or chicken-5 chicken-6)
+  (import (chicken fixnum)))
+ (else))
 
 (define (matrix-rows a) (vector-length a))
 (define (matrix-columns a) (vector-length (vector-ref a 0)))

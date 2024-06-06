@@ -33,7 +33,7 @@ exec csi -s $0 "$@"
             ,(make-pathname (pathname-directory ##sys#current-load-path)
                             path))))))
    )
-  (chicken-5
+  ((or chicken-5 chicken-6)
    (import (chicken bitwise)
            (chicken file)
            (chicken format)
@@ -50,6 +50,19 @@ exec csi -s $0 "$@"
            (only srfi-1 make-list last remove any iota)
            (only srfi-13 string-trim-both string-pad-right)
            (only (chicken platform) chicken-home))
+
+   (cond-expand
+    (chicken-6
+     (import (scheme base))
+
+     (define current-milliseconds current-process-milliseconds)
+
+     (define-syntax define-record-printer
+       (syntax-rules ()
+         ((define-record-printer (type obj out) body ...)
+          (set-record-printer! type (lambda (obj out) body ...)))))
+     )
+    (else))
 
    (define installation-prefix
      (make-parameter

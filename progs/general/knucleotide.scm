@@ -8,8 +8,12 @@
 (cond-expand
   (chicken-4
    (use data-structures extras srfi-69))
-  (chicken-5
-   (import (chicken io) (chicken sort) srfi-69)))
+  ((or chicken-5 chicken-6)
+   (import (chicken io) (chicken sort) srfi-69)
+   (cond-expand
+    (chicken-6
+     (import (scheme base)))
+    (else))))
 
 (define (string-copy! dst dstart src start end)
   (do ((i dstart (+ i 1))
