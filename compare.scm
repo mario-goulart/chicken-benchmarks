@@ -534,7 +534,7 @@ exec csi -s $0 "$@"
                     (+ (length common-prefix)
                        (apply + (map string-length common-prefix)))))
                (map (lambda (path)
-                      (substring path len-common-prefix))
+                      (substring path (sub1 len-common-prefix)))
                     log-files))))))
 
 (define (usage #!optional exit-code)
