@@ -15,8 +15,8 @@
   (cond-expand
    (chicken-6
     (import (rename (scheme base) (write-string %write-string)))
-    (define (write-string str port start) (%write-string str start port))
-    ))))
+    (define (write-string str port start) (%write-string str start port)))
+   (else))))
 
 (define (tail-r-aux port file-so-far)
   (let ((x (read-line port)))
