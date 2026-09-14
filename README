@@ -1,5 +1,8 @@
 CHICKEN benchmarks
 
+This repository contains a collection of benchmark programs for
+CHICKEN and some programs to run them, query and compare results.
+
 Some benchmark programs have been taken from CHICKEN version 4.2.0 and
 other programs have been adapted from other benchmark suites or just
 made for this suite.
@@ -7,7 +10,8 @@ made for this suite.
 Note: please see the section "Results' stability" for information on
 how to get stable benchmark results.
 
-Before you can use it with CHICKEN 5, you must run this command first:
+To use the benchmark suite with CHICKEN 5 and 6, you need some eggs,
+which can be installed with:
 
   $ chicken-install srfi-1 srfi-13 srfi-69
 
