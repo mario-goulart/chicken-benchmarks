@@ -48,8 +48,7 @@ exec csi -s $0 "$@"
            (chicken string)
            (chicken time posix)
            (only srfi-1 make-list last remove any iota)
-           (only srfi-13 string-trim-both string-pad-right)
-           (only (chicken platform) chicken-home))
+           (only srfi-13 string-trim-both string-pad-right string-prefix?))
 
    (cond-expand
     (chicken-6
@@ -61,12 +60,14 @@ exec csi -s $0 "$@"
        (syntax-rules ()
          ((define-record-printer (type obj out) body ...)
           (set-record-printer! type (lambda (obj out) body ...)))))
-     )
-    (else))
 
-   (define installation-prefix
-     (make-parameter
-      (pathname-directory (pathname-directory (chicken-home)))))
+     (define installation-prefix
+       (make-parameter
+        ;; Should be ran with "csi -s", so take the path of that csi.
+        ;; If not, it will be #f and we'll use whatever is in $PATH
+        (and (string-prefix? "csi" (pathname-file (executable-pathname)))
+             (pathname-directory (pathname-directory (executable-pathname)))))))
+    (else))
 
    (define (read-full-string p)
      (read-string #f p)))
